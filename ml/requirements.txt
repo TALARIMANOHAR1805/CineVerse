@@ -1,0 +1,14 @@
+# CineVerse ML Service — Python Dependencies
+# Phase 0: bare minimum to run FastAPI with an ASGI server
+
+# Web framework
+fastapi==0.111.0
+
+# ASGI server (runs FastAPI in production and dev)
+uvicorn[standard]==0.30.1
+
+# HTTP client (for calling TMDB, Jikan in Phase 1)
+httpx==0.27.0
+
+# Environment variable loading
+python-dotenv==1.0.1

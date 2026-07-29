@@ -1,0 +1,50 @@
+# ============================================================
+# CineVerse — Root .gitignore
+# Covers: Java/Maven, Python/FastAPI, Node/React, secrets
+# ============================================================
+
+# ── Environment & Secrets ──────────────────────────────────
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# ── Java / Maven ───────────────────────────────────────────
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/*.jar
+backend/*.war
+*.class
+hs_err_pid*
+
+# ── Python ─────────────────────────────────────────────────
+ml/__pycache__/
+ml/*.pyc
+ml/*.pyo
+ml/.venv/
+ml/venv/
+ml/env/
+ml/.pytest_cache/
+ml/*.egg-info/
+ml/dist/
+ml/build/
+ml/.mypy_cache/
+
+# ── Node / React ───────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# ── IDE & OS ───────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

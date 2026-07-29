@@ -1,0 +1,19 @@
+# CineVerse — Git line-ending normalization
+# Ensures Unix LF in repo regardless of developer OS
+
+* text=auto
+
+# Shell scripts MUST stay LF (Windows CRLF breaks bash)
+backend/mvnw text eol=lf
+*.sh         text eol=lf
+
+# Windows batch files stay CRLF
+*.cmd        text eol=crlf
+*.bat        text eol=crlf
+
+# Binary files
+*.jar  binary
+*.zip  binary
+*.png  binary
+*.jpg  binary
+*.ico  binary

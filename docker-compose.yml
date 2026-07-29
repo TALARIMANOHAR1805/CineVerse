@@ -1,0 +1,54 @@
+# CineVerse — Docker Compose (local dev)
+# Starts all three services with: docker-compose up
+#
+# Each service can also be run independently — see README.md
+
+services:
+
+  # ── Spring Boot Backend ─────────────────────────────────────
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"          # host:container
+    env_file:
+      - ./backend/.env       # loaded from gitignored .env file
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # ml service could depend on backend in Phase 3+ but not yet
+    networks:
+      - cineverse-net
+
+  # ── FastAPI ML Service ──────────────────────────────────────
+  ml:
+    build: ./ml
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./ml/.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cineverse-net
+
+  # ── React Frontend (production build via nginx) ─────────────
+  # NOTE: For active development, run `npm run dev` directly instead.
+  # This Docker target is for integration testing / Render-like previews.
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"            # nginx inside container listens on 80
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - cineverse-net
+
+networks:
+  cineverse-net:
+    driver: bridge

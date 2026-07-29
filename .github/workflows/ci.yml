@@ -1,0 +1,88 @@
+name: CI — CineVerse
+
+# Trigger on every push to main and every pull request
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  # ── Backend: Maven build + test ──────────────────────────────
+  backend:
+    name: Backend (Java 21 / Maven)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven          # caches ~/.m2 between runs
+
+      - name: Build and test
+        # -B = batch mode (no interactive prompts, cleaner CI logs)
+        # mvnw = Maven Wrapper — downloads Maven automatically, no install needed
+        run: ./mvnw verify -B
+
+  # ── ML Service: install deps + basic smoke test ──────────────
+  ml:
+    name: ML Service (Python 3.11 / FastAPI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ml
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run FastAPI smoke test
+        # Start the server in the background, wait for it, then hit /health
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8001 &
+          sleep 5
+          curl -f http://localhost:8001/health
+          echo "ML health check passed ✓"
+
+  # ── Frontend: install + build ────────────────────────────────
+  frontend:
+    name: Frontend (Node / Vite + React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci           # ci = clean install, uses lock file exactly
+
+      - name: Build
+        run: npm run build    # ensures the Vite bundle compiles without errors
