@@ -119,6 +119,33 @@ public class TmdbService {
         return new CollectionResult(String.valueOf(collectionId), name, entries);
     }
 
+    /** Phase 3 — Fetch top cast members for graph ingestion. */
+    @SuppressWarnings("unchecked")
+    public List<CastMember> getMovieCredits(int tmdbId) {
+        Map<String, Object> r = restClient.get()
+                .uri(u -> u.path("/movie/{id}/credits")
+                        .queryParam("api_key", apiKey)
+                        .build(tmdbId))
+                .retrieve()
+                .body(Map.class);
+
+        if (r == null) return Collections.emptyList();
+
+        List<Map<String, Object>> cast =
+                (List<Map<String, Object>>) r.getOrDefault("cast", Collections.emptyList());
+
+        return cast.stream()
+                .limit(10)   // top-billed only to keep graph lean
+                .map(c -> new CastMember(
+                        safeString(c.get("name")),
+                        safeString(c.get("character"))
+                ))
+                .collect(Collectors.toList());
+    }
+
+    /** A single cast member from TMDB credits. */
+    public record CastMember(String name, String character) {}
+
     // ── Helpers ────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")

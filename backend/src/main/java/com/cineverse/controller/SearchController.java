@@ -1,5 +1,6 @@
 package com.cineverse.controller;
 
+import com.cineverse.service.GraphService;
 import com.cineverse.service.JikanService;
 import com.cineverse.service.TmdbService;
 import org.springframework.http.HttpStatus;
@@ -23,12 +24,14 @@ import java.util.Map;
 @RequestMapping("/api")
 public class SearchController {
 
-    private final TmdbService tmdbService;
-    private final JikanService jikanService;
+    private final TmdbService  tmdbService;
+    private final JikanService  jikanService;
+    private final GraphService  graphService;
 
-    public SearchController(TmdbService tmdbService, JikanService jikanService) {
-        this.tmdbService = tmdbService;
+    public SearchController(TmdbService tmdbService, JikanService jikanService, GraphService graphService) {
+        this.tmdbService  = tmdbService;
         this.jikanService = jikanService;
+        this.graphService = graphService;
     }
 
     /** Unified search — type: "all" | "movie" | "anime" */
@@ -56,11 +59,12 @@ public class SearchController {
         );
     }
 
-    /** Single movie detail by TMDB id */
+    /** Single movie detail by TMDB id — also triggers async graph ingest. */
     @GetMapping("/movies/{id}")
     public TmdbService.MediaResult movieDetail(@PathVariable int id) {
         TmdbService.MediaResult result = tmdbService.getMovieById(id);
         if (result == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found: " + id);
+        graphService.ingestMovie(result);  // async — never blocks response
         return result;
     }
 
