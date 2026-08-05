@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * TMDB API Client — Phase 1
- * Full multi-result search with poster, rating, genres.
+ * TMDB API Client — Phase 1 + Phase 2
+ * Full multi-result search with poster, rating, genres, and collectionId.
  */
 @Service
 public class TmdbService {
@@ -52,7 +52,7 @@ public class TmdbService {
                 .collect(Collectors.toList());
     }
 
-    /** Get a single movie by TMDB id (includes genres). */
+    /** Get a single movie by TMDB id — includes genres + collectionId. */
     @SuppressWarnings("unchecked")
     public MediaResult getMovieById(int tmdbId) {
         Map<String, Object> r = restClient.get()
@@ -63,11 +63,20 @@ public class TmdbService {
                 .body(Map.class);
 
         if (r == null) return null;
+
         List<Map<String, Object>> genreMaps =
                 (List<Map<String, Object>>) r.getOrDefault("genres", Collections.emptyList());
         List<String> genres = genreMaps.stream()
                 .map(g -> (String) g.get("name"))
                 .collect(Collectors.toList());
+
+        // Extract collection id for timeline (null if standalone film)
+        Map<String, Object> collection =
+                (Map<String, Object>) r.get("belongs_to_collection");
+        Integer collectionId = null;
+        if (collection != null && collection.get("id") instanceof Number n) {
+            collectionId = n.intValue();
+        }
 
         return new MediaResult(
                 String.valueOf(r.get("id")),
@@ -77,15 +86,43 @@ public class TmdbService {
                 safeString(r.get("overview")),
                 toImageUrl((String) r.get("poster_path")),
                 toRating(r.get("vote_average")),
-                genres
+                genres,
+                collectionId
         );
+    }
+
+    /** Fetch all parts of a TMDB collection sorted by release date. */
+    @SuppressWarnings("unchecked")
+    public CollectionResult getCollection(int collectionId) {
+        Map<String, Object> r = restClient.get()
+                .uri(u -> u.path("/collection/{id}")
+                        .queryParam("api_key", apiKey)
+                        .build(collectionId))
+                .retrieve()
+                .body(Map.class);
+
+        if (r == null) return null;
+
+        String name = safeString(r.get("name"));
+        List<Map<String, Object>> parts =
+                (List<Map<String, Object>>) r.getOrDefault("parts", Collections.emptyList());
+
+        List<MediaResult> entries = parts.stream()
+                .sorted((a, b) -> {
+                    String da = safeString(a.get("release_date"));
+                    String db = safeString(b.get("release_date"));
+                    return da.compareTo(db);
+                })
+                .map(p -> toMediaResult(p, "movie"))
+                .collect(Collectors.toList());
+
+        return new CollectionResult(String.valueOf(collectionId), name, entries);
     }
 
     // ── Helpers ────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
     private MediaResult toMediaResult(Map<String, Object> r, String type) {
-        List<String> genres = Collections.emptyList(); // search endpoint doesn't return names
         return new MediaResult(
                 String.valueOf(r.get("id")),
                 safeString(r.getOrDefault("title", r.get("name"))),
@@ -94,7 +131,8 @@ public class TmdbService {
                 safeString(r.get("overview")),
                 toImageUrl((String) r.get("poster_path")),
                 toRating(r.get("vote_average")),
-                genres
+                Collections.emptyList(), // search endpoint doesn't return genre names
+                null                     // collectionId unknown from search results
         );
     }
 
@@ -115,16 +153,29 @@ public class TmdbService {
         return v instanceof String s ? s : "";
     }
 
-    /** Unified DTO returned to the frontend for both movies and anime. */
+    // ── DTOs ───────────────────────────────────────────────────
+
+    /**
+     * Unified DTO for movies and anime.
+     * collectionId is non-null only for movies that belong to a TMDB collection.
+     */
     public record MediaResult(
             String id,
             String title,
-            String type,        // "movie" | "anime"
+            String type,
             String year,
             String synopsis,
             String posterUrl,
             double rating,
-            List<String> genres
+            List<String> genres,
+            Integer collectionId   // Phase 2: for timeline lookup (null = standalone)
+    ) {}
+
+    /** A TMDB collection (e.g. "Iron Man Collection") with its ordered parts. */
+    public record CollectionResult(
+            String id,
+            String name,
+            List<MediaResult> parts
     ) {}
 
     /** Keep old record for backward compat with TmdbTestController */

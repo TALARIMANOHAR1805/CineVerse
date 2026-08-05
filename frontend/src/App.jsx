@@ -1,6 +1,6 @@
 /**
- * App.jsx — CineVerse Phase 1
- * Unified movie + anime search with poster cards and detail modal.
+ * App.jsx — CineVerse Phase 2
+ * Search + Timeline Placement (movie franchise + anime watch order)
  */
 import { useState, useCallback, useRef } from 'react';
 import './App.css';
@@ -8,25 +8,18 @@ import './App.css';
 const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 /* ─────────────────────────────────────────────────────────── */
-/* Utility                                                      */
-/* ─────────────────────────────────────────────────────────── */
-function useDebounce(fn, delay) {
-  const timer = useRef(null);
-  return useCallback((...args) => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => fn(...args), delay);
-  }, [fn, delay]);
-}
-
-/* ─────────────────────────────────────────────────────────── */
-/* Sub-components                                               */
+/* Small Components                                             */
 /* ─────────────────────────────────────────────────────────── */
 
-/** Single movie / anime card */
 function MediaCard({ item, onClick }) {
   return (
-    <div className="card" onClick={() => onClick(item)} role="button" tabIndex={0}
-      onKeyDown={e => e.key === 'Enter' && onClick(item)}>
+    <div
+      className="card"
+      onClick={() => onClick(item)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && onClick(item)}
+    >
       {item.posterUrl
         ? <img className="card__poster" src={item.posterUrl} alt={item.title} loading="lazy" />
         : <div className="card__poster-placeholder">{item.type === 'anime' ? '🎌' : '🎬'}</div>
@@ -36,70 +29,20 @@ function MediaCard({ item, onClick }) {
         <p className="card__title">{item.title}</p>
         <div className="card__meta">
           <span className="card__year">{item.year}</span>
-          {item.rating > 0 && (
-            <span className="card__rating">⭐ {item.rating}</span>
-          )}
+          {item.rating > 0 && <span className="card__rating">⭐ {item.rating}</span>}
         </div>
         {item.genres?.length > 0 && (
           <div className="genre-list">
-            {item.genres.slice(0, 3).map(g => (
-              <span key={g} className="genre-tag">{g}</span>
-            ))}
+            {item.genres.slice(0, 3).map(g => <span key={g} className="genre-tag">{g}</span>)}
           </div>
         )}
+        <div className="card__timeline-hint">View timeline →</div>
       </div>
     </div>
   );
 }
 
-/** Detail modal */
-function DetailModal({ item, onClose }) {
-  if (!item) return null;
-  return (
-    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}
-      role="dialog" aria-modal="true" aria-label={item.title}>
-      <div className="modal" style={{ position: 'relative' }}>
-        <button className="modal__close" onClick={onClose} aria-label="Close">✕</button>
-        <div className="modal__header">
-          {item.posterUrl
-            ? <img className="modal__poster" src={item.posterUrl} alt={item.title} />
-            : <div className="modal__poster-placeholder">{item.type === 'anime' ? '🎌' : '🎬'}</div>
-          }
-          <div className="modal__info">
-            <p className={`modal__type modal__type--${item.type}`}>{item.type}</p>
-            <h2 className="modal__title">{item.title}</h2>
-            <div className="modal__stats">
-              {item.year && item.year !== '—' && (
-                <span className="modal__stat">
-                  <span className="modal__stat-icon">📅</span> {item.year}
-                </span>
-              )}
-              {item.rating > 0 && (
-                <span className="modal__stat">
-                  <span className="modal__stat-icon">⭐</span> {item.rating} / 10
-                </span>
-              )}
-            </div>
-            {item.genres?.length > 0 && (
-              <div className="genre-list">
-                {item.genres.map(g => <span key={g} className="genre-tag">{g}</span>)}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="modal__body">
-          <p className="modal__synopsis-label">Synopsis</p>
-          <p className="modal__synopsis">
-            {item.synopsis || 'No synopsis available.'}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Results section with header + grid */
-function ResultsSection({ title, icon, items, onCardClick, typeClass }) {
+function ResultsSection({ title, icon, items, onCardClick }) {
   if (!items?.length) return null;
   return (
     <div className="section-divider">
@@ -122,16 +65,173 @@ function ResultsSection({ title, icon, items, onCardClick, typeClass }) {
 }
 
 /* ─────────────────────────────────────────────────────────── */
+/* Timeline Panel                                               */
+/* ─────────────────────────────────────────────────────────── */
+
+function TimelineEntry({ entry, isHighlighted }) {
+  return (
+    <div className={`tl-entry${isHighlighted ? ' tl-entry--current' : ''}`}>
+      <div className="tl-position">{entry.position}</div>
+      {entry.posterUrl
+        ? <img className="tl-poster" src={entry.posterUrl} alt={entry.title} loading="lazy" />
+        : <div className="tl-poster-placeholder">🎬</div>
+      }
+      <div className="tl-info">
+        <p className="tl-title">{entry.title}</p>
+        <p className="tl-year">{entry.year}</p>
+        {entry.rating > 0 && <p className="tl-rating">⭐ {entry.rating}</p>}
+      </div>
+      {isHighlighted && <div className="tl-here-badge">▶ You are here</div>}
+    </div>
+  );
+}
+
+function TimelinePanel({ item, onClose }) {
+  const [timeline, setTimeline] = useState(null);
+  const [tlLoading, setTlLoading] = useState(true);
+  const [tlError, setTlError]   = useState(null);
+  const trackRef = useRef(null);
+
+  // Fetch timeline on mount
+  useState(() => {
+    let cancelled = false;
+    async function load() {
+      setTlLoading(true);
+      setTlError(null);
+      try {
+        const endpoint = item.type === 'anime'
+          ? `${API}/timeline/anime/${item.id}`
+          : `${API}/timeline/movie/${item.id}`;
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error(`Server error ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setTimeline(data);
+      } catch (err) {
+        if (!cancelled) setTlError(err.message || 'Failed to load timeline');
+      } finally {
+        if (!cancelled) setTlLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  });
+
+  // Scroll to current entry after render
+  const scrollToCurrent = useCallback(node => {
+    if (node) {
+      const current = node.querySelector('.tl-entry--current');
+      if (current) current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, []);
+
+  const currentEntry = timeline?.entries?.find(e => e.isCurrent);
+
+  return (
+    <div className="tl-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="tl-panel" role="dialog" aria-modal="true" aria-label="Timeline">
+
+        {/* ── Panel Header ── */}
+        <div className="tl-panel__header">
+          <button className="tl-back-btn" onClick={onClose} aria-label="Back to results">
+            ← Back
+          </button>
+          <div className="tl-panel__title-wrap">
+            {tlLoading
+              ? <div className="skeleton" style={{ width: 200, height: 20 }} />
+              : <>
+                  <span className={`tl-type-badge tl-type-badge--${item.type}`}>{item.type}</span>
+                  <h2 className="tl-panel__franchise">
+                    {timeline?.franchiseName || item.title}
+                  </h2>
+                  {timeline && (
+                    <span className="tl-count-badge">
+                      {timeline.entries?.length} {timeline.entries?.length === 1 ? 'entry' : 'entries'}
+                    </span>
+                  )}
+                </>
+            }
+          </div>
+        </div>
+
+        {/* ── Timeline Track ── */}
+        <div className="tl-track-wrap">
+          {tlLoading && (
+            <div className="tl-loading">
+              <div className="spinner" />
+              <p>Building timeline…</p>
+            </div>
+          )}
+
+          {tlError && !tlLoading && (
+            <div className="tl-loading">
+              <span style={{ fontSize: '2rem' }}>⚠️</span>
+              <p style={{ color: 'var(--text-2)' }}>{tlError}</p>
+            </div>
+          )}
+
+          {!tlLoading && !tlError && timeline && (
+            <div className="tl-track" ref={node => { trackRef.current = node; scrollToCurrent(node); }}>
+              {timeline.entries.map((entry, i) => (
+                <div key={entry.id} className="tl-entry-wrap">
+                  <TimelineEntry entry={entry} isHighlighted={entry.isCurrent} />
+                  {i < timeline.entries.length - 1 && <div className="tl-connector" />}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Synopsis of current item ── */}
+        {!tlLoading && !tlError && (
+          <div className="tl-detail">
+            <div className="tl-detail__left">
+              {item.posterUrl
+                ? <img className="tl-detail__poster" src={item.posterUrl} alt={item.title} />
+                : <div className="tl-detail__poster-ph">{item.type === 'anime' ? '🎌' : '🎬'}</div>
+              }
+            </div>
+            <div className="tl-detail__right">
+              <p className="tl-detail__label">Currently viewing</p>
+              <h3 className="tl-detail__title">{item.title}</h3>
+              <div className="tl-detail__meta">
+                {item.year && item.year !== '—' && (
+                  <span className="tl-detail__chip">📅 {item.year}</span>
+                )}
+                {item.rating > 0 && (
+                  <span className="tl-detail__chip">⭐ {item.rating} / 10</span>
+                )}
+                {currentEntry && (
+                  <span className="tl-detail__chip">
+                    #{currentEntry.position} of {timeline?.entries?.length}
+                  </span>
+                )}
+              </div>
+              {item.genres?.length > 0 && (
+                <div className="genre-list" style={{ marginBottom: '1rem' }}>
+                  {item.genres.map(g => <span key={g} className="genre-tag">{g}</span>)}
+                </div>
+              )}
+              <p className="tl-detail__synopsis">
+                {item.synopsis || 'No synopsis available.'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────── */
 /* Main App                                                     */
 /* ─────────────────────────────────────────────────────────── */
 export default function App() {
-  const [query, setQuery]       = useState('');
-  const [tab, setTab]           = useState('all');
-  const [results, setResults]   = useState(null);   // null = no search yet
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState(null);
-  const [selected, setSelected] = useState(null);   // detail modal item
-  const inputRef                = useRef(null);
+  const [query, setQuery]         = useState('');
+  const [tab, setTab]             = useState('all');
+  const [results, setResults]     = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState(null);
+  const [timelineItem, setTimeline] = useState(null);   // opens timeline panel
 
   const TABS = [
     { id: 'all',   label: 'All' },
@@ -145,21 +245,15 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `${API}/search?q=${encodeURIComponent(trimmed)}&type=${t}`
-      );
+      const res = await fetch(`${API}/search?q=${encodeURIComponent(trimmed)}&type=${t}`);
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
       setResults(data);
     } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError(err.message || 'Something went wrong.');
     } finally {
       setLoading(false);
     }
-  }
-
-  function handleKey(e) {
-    if (e.key === 'Enter') doSearch();
   }
 
   function switchTab(t) {
@@ -176,15 +270,14 @@ export default function App() {
       {/* ── Navbar ── */}
       <nav className="navbar">
         <span className="navbar__logo">CineVerse</span>
-        <span className="navbar__badge">Phase 1</span>
+        <span className="navbar__badge">Phase 2</span>
       </nav>
 
       {/* ── Hero + Search ── */}
       <section className="hero">
         <h1 className="hero__title">Should I watch this?</h1>
         <p className="hero__sub">
-          Spoiler-free summaries · Timeline placement · Graph discovery<br/>
-          Search any movie or anime instantly.
+          Spoiler-free summaries · <strong>Timeline placement</strong> · Graph discovery
         </p>
 
         <div className="search-wrap">
@@ -192,13 +285,12 @@ export default function App() {
             <span className="search-icon">🔍</span>
             <input
               id="search-input"
-              ref={inputRef}
               className="search-input"
               type="text"
-              placeholder="Search movies or anime… e.g. Inception, Naruto"
+              placeholder="Search movies or anime… e.g. Iron Man, Naruto"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              onKeyDown={handleKey}
+              onKeyDown={e => e.key === 'Enter' && doSearch()}
               autoComplete="off"
             />
             <button
@@ -211,7 +303,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* Type tabs */}
           <div className="tabs" role="tablist">
             {TABS.map(t => (
               <button
@@ -231,8 +322,6 @@ export default function App() {
 
       {/* ── Results ── */}
       <main className="content" id="results">
-
-        {/* Loading */}
         {loading && (
           <div className="state-center">
             <div className="spinner" />
@@ -240,7 +329,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Error */}
         {!loading && error && (
           <div className="state-center">
             <span className="state-icon">⚠️</span>
@@ -249,47 +337,31 @@ export default function App() {
           </div>
         )}
 
-        {/* Empty state — no search yet */}
         {!loading && !error && results === null && (
           <div className="state-center">
             <span className="state-icon">🎬</span>
             <p className="state-title">Find your next watch</p>
             <p className="state-text">
-              Type a movie or anime title above and hit Search.
-              We'll pull spoiler-free summaries from TMDB and Jikan.
+              Search any title — click a result to see its full franchise timeline.
             </p>
           </div>
         )}
 
-        {/* No results */}
         {!loading && !error && results !== null && !hasAny && (
           <div className="state-center">
             <span className="state-icon">🔎</span>
             <p className="state-title">No results found</p>
-            <p className="state-text">
-              Try a different title or switch the filter tab.
-            </p>
+            <p className="state-text">Try a different title or switch the filter tab.</p>
           </div>
         )}
 
-        {/* Results */}
         {!loading && !error && hasAny && (
           <>
             {(tab === 'all' || tab === 'movie') && (
-              <ResultsSection
-                title="Movies"
-                icon="🎬"
-                items={results.movies}
-                onCardClick={setSelected}
-              />
+              <ResultsSection title="Movies" icon="🎬" items={results.movies} onCardClick={setTimeline} />
             )}
             {(tab === 'all' || tab === 'anime') && (
-              <ResultsSection
-                title="Anime"
-                icon="🎌"
-                items={results.anime}
-                onCardClick={setSelected}
-              />
+              <ResultsSection title="Anime" icon="🎌" items={results.anime} onCardClick={setTimeline} />
             )}
           </>
         )}
@@ -300,9 +372,9 @@ export default function App() {
         CineVerse · Powered by TMDB &amp; Jikan · Data from community contributors
       </footer>
 
-      {/* ── Detail Modal ── */}
-      {selected && (
-        <DetailModal item={selected} onClose={() => setSelected(null)} />
+      {/* ── Timeline Panel ── */}
+      {timelineItem && (
+        <TimelinePanel item={timelineItem} onClose={() => setTimeline(null)} />
       )}
     </div>
   );
