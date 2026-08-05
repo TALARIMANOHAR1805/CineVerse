@@ -52,8 +52,8 @@ cd frontend && npm install && npm run dev
 See `.env.example` files in each service directory. **Never commit `.env` files.**
 
 ## Phases
-- **Phase 0** — Scaffolding, CI, deployment setup ← *you are here*
-- **Phase 1** — Search + spoiler-free summaries (TMDB + Jikan)
-- **Phase 2** — Timeline placement
-- **Phase 3** — Neo4j graph discovery
-- **Phase 4-5** — ML/CV features
+- **Phase 0** — Scaffolding, CI, deployment setup (✅ Completed)
+- **Phase 1** — Search + spoiler-free summaries (TMDB + Jikan) (✅ Completed)
+- **Phase 2** — Timeline placement (✅ Completed)
+- **Phase 3** — Neo4j graph discovery (✅ Completed)
+- **Phase 4-5** — ML/CV features (✅ Completed)
