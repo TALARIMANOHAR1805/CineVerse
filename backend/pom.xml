@@ -43,6 +43,12 @@
             <version>4.0.0</version>
         </dependency>
 
+        <!-- Spring Data Neo4j -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-neo4j</artifactId>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
