@@ -5,7 +5,10 @@
 import { useState, useCallback, useRef } from 'react';
 import './App.css';
 
-const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+let API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+if (API && !API.endsWith('/api')) {
+  API = `${API}/api`;
+}
 const ML_API = import.meta.env.VITE_ML_API_BASE_URL || 'http://localhost:8001/api/ml';
 
 /* ─────────────────────────────────────────────────────────── */
