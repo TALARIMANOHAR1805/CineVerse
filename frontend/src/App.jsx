@@ -6,6 +6,7 @@ import { useState, useCallback, useRef } from 'react';
 import './App.css';
 
 const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const ML_API = import.meta.env.VITE_ML_API_BASE_URL || 'http://localhost:8001/api/ml';
 
 /* ─────────────────────────────────────────────────────────── */
 /* Small Components                                             */
@@ -192,6 +193,87 @@ function GraphConnections({ tmdbId }) {
 }
 
 /* ─────────────────────────────────────────────────────────── */
+/* ML Recommendations Tab (Phase 4)                            */
+/* ─────────────────────────────────────────────────────────── */
+
+function MLRecommendations({ item }) {
+  const [recs, setRecs] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useState(() => {
+    let cancelled = false;
+    async function fetchRecs() {
+      setLoading(true); setError(null);
+      try {
+        const res = await fetch(`${ML_API}/recommend`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: item.title,
+            synopsis: item.synopsis || "",
+            genres: item.genres || [],
+            limit: 8
+          })
+        });
+        if (!res.ok) throw new Error(`${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setRecs(data.recommendations || []);
+      } catch (e) {
+        if (!cancelled) setError(e.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchRecs();
+    return () => { cancelled = true; };
+  });
+
+  if (loading) return (
+    <div className="graph-state">
+      <div className="spinner" style={{ width: 32, height: 32 }} />
+      <p>Consulting ML models...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="graph-state">
+      <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+      <p style={{ color: 'var(--text-2)' }}>ML Service unavailable: {error}</p>
+    </div>
+  );
+
+  if (!recs?.length) return (
+    <div className="graph-state">
+      <p className="graph-state__text">No strong ML recommendations found.</p>
+    </div>
+  );
+
+  return (
+    <div className="graph-results">
+      <div className="graph-section">
+        <p className="graph-section__label">🤖 Recommended by ML (TF-IDF Similarity)</p>
+        <div className="graph-grid">
+          {recs.map(c => (
+            <div key={c.id} className="graph-card">
+              {c.posterUrl
+                ? <img className="graph-card__poster" src={c.posterUrl} alt={c.title} loading="lazy" />
+                : <div className="graph-card__poster-ph">🎬</div>
+              }
+              <div className="graph-card__body">
+                <p className="graph-card__title">{c.title}</p>
+                <p className="graph-card__year">{c.year}</p>
+                <p className="graph-card__rating">Match: {Math.round(c.similarityScore * 100)}%</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────── */
 /* Timeline Panel (Phases 2 + 3)                               */
 /* ─────────────────────────────────────────────────────────── */
 
@@ -200,10 +282,16 @@ function TimelinePanel({ item, onClose }) {
   const [timeline, setTimeline]     = useState(null);
   const [tlLoading, setTlLoading]   = useState(true);
   const [tlError, setTlError]       = useState(null);
+  
+  // Phase 4: Poster ML Analysis
+  const [posterColor, setPosterColor] = useState(null);
 
   const PANEL_TABS = [
     { id: 'timeline',    label: '📅 Timeline' },
-    ...(item.type === 'movie' ? [{ id: 'graph', label: '🕸️ Graph' }] : []),
+    ...(item.type === 'movie' ? [
+        { id: 'graph', label: '🕸️ Graph' },
+        { id: 'ml', label: '🤖 ML Recs' }
+    ] : []),
     { id: 'synopsis',    label: '📖 Synopsis' },
   ];
 
@@ -226,7 +314,28 @@ function TimelinePanel({ item, onClose }) {
         if (!cancelled) setTlLoading(false);
       }
     }
+    
+    async function analyzePoster() {
+      if (!item.posterUrl) return;
+      try {
+        const res = await fetch(`${ML_API}/poster/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ posterUrl: item.posterUrl })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && data.dominantColor) {
+            setPosterColor(data.dominantColor);
+          }
+        }
+      } catch (e) {
+        // fail silently for ML
+      }
+    }
+    
     load();
+    analyzePoster();
     return () => { cancelled = true; };
   });
 
@@ -241,7 +350,12 @@ function TimelinePanel({ item, onClose }) {
 
   return (
     <div className="tl-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="tl-panel" role="dialog" aria-modal="true">
+      <div 
+        className="tl-panel" 
+        role="dialog" 
+        aria-modal="true"
+        style={posterColor ? { '--panel-bg': posterColor, background: 'linear-gradient(to bottom, var(--panel-bg), var(--bg-1))' } : {}}
+      >
 
         {/* ── Header ── */}
         <div className="tl-panel__header">
@@ -307,6 +421,13 @@ function TimelinePanel({ item, onClose }) {
           {activeTab === 'graph' && item.type === 'movie' && (
             <div className="tl-graph-wrap">
               <GraphConnections tmdbId={item.id} />
+            </div>
+          )}
+
+          {/* ML tab (movies only) */}
+          {activeTab === 'ml' && item.type === 'movie' && (
+            <div className="tl-graph-wrap">
+              <MLRecommendations item={item} />
             </div>
           )}
 

@@ -1,14 +1,23 @@
 # CineVerse ML Service — Python Dependencies
-# Phase 0: bare minimum to run FastAPI with an ASGI server
+# Phase 4: content-based recommendations + image analysis
 
 # Web framework
 fastapi==0.111.0
 
-# ASGI server (runs FastAPI in production and dev)
+# ASGI server
 uvicorn[standard]==0.30.1
 
-# HTTP client (for calling TMDB, Jikan in Phase 1)
+# HTTP client (calls TMDB, Jikan, Spring Boot backend)
 httpx==0.27.0
 
 # Environment variable loading
 python-dotenv==1.0.1
+
+# Phase 4 — ML
+scikit-learn==1.5.2       # TF-IDF, cosine similarity
+numpy==1.26.4             # numerical ops
+pydantic==2.9.2           # data models (included with FastAPI but pinned)
+
+# Phase 4 — Image analysis
+Pillow==10.4.0            # poster image processing
+colorthief==0.2.1         # extract dominant colors from posters
