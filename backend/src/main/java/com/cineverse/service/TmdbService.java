@@ -32,24 +32,29 @@ public class TmdbService {
     /** Search movies — returns up to 20 results. */
     @SuppressWarnings("unchecked")
     public List<MediaResult> searchMovies(String query) {
-        Map<String, Object> response = restClient.get()
-                .uri(u -> u.path("/search/movie")
-                        .queryParam("query", query)
-                        .queryParam("api_key", apiKey)
-                        .queryParam("include_adult", false)
-                        .build())
-                .retrieve()
-                .body(Map.class);
+        try {
+            Map<String, Object> response = restClient.get()
+                    .uri(u -> u.path("/search/movie")
+                            .queryParam("query", query)
+                            .queryParam("api_key", apiKey)
+                            .queryParam("include_adult", false)
+                            .build())
+                    .retrieve()
+                    .body(Map.class);
 
-        if (response == null) return Collections.emptyList();
+            if (response == null) return Collections.emptyList();
 
-        List<Map<String, Object>> results =
-                (List<Map<String, Object>>) response.getOrDefault("results", Collections.emptyList());
+            List<Map<String, Object>> results =
+                    (List<Map<String, Object>>) response.getOrDefault("results", Collections.emptyList());
 
-        return results.stream()
-                .limit(20)
-                .map(r -> toMediaResult(r, "movie"))
-                .collect(Collectors.toList());
+            return results.stream()
+                    .limit(20)
+                    .map(r -> toMediaResult(r, "movie"))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("TMDB API search failed: " + e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     /** Get a single movie by TMDB id — includes genres + collectionId. */

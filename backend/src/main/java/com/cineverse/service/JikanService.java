@@ -24,23 +24,29 @@ public class JikanService {
     /** Search anime by title — returns up to 20 results. */
     @SuppressWarnings("unchecked")
     public List<TmdbService.MediaResult> searchAnime(String query) {
-        Map<String, Object> response = restClient.get()
-                .uri(u -> u.path("/anime")
-                        .queryParam("q", query)
-                        .queryParam("limit", 20)
-                        .queryParam("sfw", true)
-                        .build())
-                .retrieve()
-                .body(Map.class);
+        try {
+            Map<String, Object> response = restClient.get()
+                    .uri(u -> u.path("/anime")
+                            .queryParam("q", query)
+                            .queryParam("limit", 20)
+                            .queryParam("sfw", true)
+                            .build())
+                    .retrieve()
+                    .body(Map.class);
 
-        if (response == null) return Collections.emptyList();
+            if (response == null) return Collections.emptyList();
 
-        List<Map<String, Object>> data =
-                (List<Map<String, Object>>) response.getOrDefault("data", Collections.emptyList());
+            List<Map<String, Object>> data =
+                    (List<Map<String, Object>>) response.getOrDefault("data", Collections.emptyList());
 
-        return data.stream()
-                .map(this::toMediaResult)
-                .collect(Collectors.toList());
+            return data.stream()
+                    .map(this::toMediaResult)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            // If Jikan API is down or times out, return empty list instead of crashing the whole search
+            System.err.println("Jikan API search failed: " + e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     /** Get a single anime by MAL id. */
