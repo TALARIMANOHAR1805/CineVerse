@@ -816,3 +816,67 @@
   text-overflow: ellipsis;
 }
 
+/* ─────────────────────────────────────────────────────────── */
+/* Mood Discovery (Phase 5)                                    */
+/* ─────────────────────────────────────────────────────────── */
+
+.mood-discovery {
+  margin: 0 auto 3rem auto;
+  max-width: 900px;
+  text-align: center;
+}
+
+.mood-discovery__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  background: var(--gradient-text);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.mood-discovery__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.mood-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-2);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mood-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  color: var(--text-1);
+}
+
+.mood-btn--active {
+  background: rgba(124, 111, 255, 0.2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mood-btn__icon {
+  font-size: 1.1rem;
+}
+
+.mood-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}

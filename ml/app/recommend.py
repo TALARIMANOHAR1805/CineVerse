@@ -12,9 +12,11 @@ works immediately without training.
 """
 
 import os
+import asyncio
 import httpx
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from app.poster import analyze_poster
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080/api")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")
@@ -148,3 +150,55 @@ def _extract_year(date_str: str) -> str:
 
 def _poster_url(path: str | None) -> str | None:
     return f"https://image.tmdb.org/t/p/w500{path}" if path else None
+
+async def discover_movies_by_mood(mood: str, limit: int = 12) -> list[dict]:
+    """
+    Fetches trending/popular movies, analyzes their posters concurrently,
+    and filters them by the requested visual mood.
+    """
+    candidates = []
+    genre_map = await _get_genre_map()
+    
+    # Fetch a larger pool of trending movies to ensure we get enough matches
+    async with httpx.AsyncClient(timeout=15) as client:
+        for page in range(1, 4):
+            try:
+                resp = await client.get(
+                    f"{TMDB_BASE}/trending/movie/week",
+                    params={"api_key": TMDB_API_KEY, "page": page},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for m in data.get("results", []):
+                        if m.get("poster_path"):
+                            m["genre_names"] = [genre_map.get(gid, "") for gid in m.get("genre_ids", [])]
+                            candidates.append(m)
+            except Exception:
+                pass
+                
+    # Define a helper for concurrent analysis
+    async def _analyze_and_filter(m: dict) -> dict | None:
+        p_url = _poster_url(m.get("poster_path"))
+        if not p_url: return None
+        analysis = await analyze_poster(p_url)
+        if analysis.get("mood") == mood:
+            return {
+                "id": str(m.get("id", "")),
+                "type": "movie",
+                "title": m.get("title", ""),
+                "year": _extract_year(m.get("release_date", "")),
+                "synopsis": m.get("overview", ""),
+                "posterUrl": p_url,
+                "rating": round(m.get("vote_average", 0), 1),
+                "genres": m.get("genre_names", []),
+                "dominantColor": analysis.get("dominantColor"),
+            }
+        return None
+
+    # Run analysis concurrently
+    tasks = [_analyze_and_filter(m) for m in candidates]
+    results = await asyncio.gather(*tasks)
+    
+    # Filter out None and return up to `limit`
+    valid_results = [r for r in results if r is not None]
+    return valid_results[:limit]

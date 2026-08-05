@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.recommend import get_recommendations
+from app.recommend import get_recommendations, discover_movies_by_mood
 from app.poster import analyze_poster
 
 app = FastAPI(
@@ -115,7 +115,7 @@ async def poster_analyze(req: PosterAnalyzeRequest):
 
 
 @app.get("/api/ml/mood/{mood}")
-async def discover_by_mood(mood: str):
+async def mood_info(mood: str):
     """
     Returns the mood classification info.
     Available moods: dark, moody, intense, vibrant, neutral, bright, energetic.
@@ -131,6 +131,28 @@ async def discover_by_mood(mood: str):
         "description": _mood_description(mood.lower()),
         "validMoods": valid_moods,
     }
+
+@app.get("/api/ml/discover/mood/{mood}")
+async def discover_by_mood(mood: str):
+    """
+    Returns movies matching the specified visual mood.
+    """
+    valid_moods = ["dark", "moody", "intense", "vibrant", "neutral", "bright", "energetic"]
+    if mood.lower() not in valid_moods:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown mood '{mood}'. Valid: {', '.join(valid_moods)}"
+        )
+    try:
+        movies = await discover_movies_by_mood(mood.lower(), limit=12)
+        return {
+            "mood": mood.lower(),
+            "description": _mood_description(mood.lower()),
+            "count": len(movies),
+            "results": movies
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def _mood_description(mood: str) -> str:

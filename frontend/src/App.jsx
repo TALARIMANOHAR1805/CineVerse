@@ -274,6 +274,93 @@ function MLRecommendations({ item }) {
 }
 
 /* ─────────────────────────────────────────────────────────── */
+/* Mood Discovery Component (Phase 5)                          */
+/* ─────────────────────────────────────────────────────────── */
+
+function MoodDiscovery({ onCardClick }) {
+  const [mood, setMood] = useState(null);
+  const [movies, setMovies] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const MOODS = [
+    { id: 'dark', emoji: '🌑', label: 'Dark' },
+    { id: 'moody', emoji: '🌧️', label: 'Moody' },
+    { id: 'intense', emoji: '🔥', label: 'Intense' },
+    { id: 'vibrant', emoji: '✨', label: 'Vibrant' },
+    { id: 'neutral', emoji: '⚖️', label: 'Neutral' },
+    { id: 'bright', emoji: '☀️', label: 'Bright' },
+    { id: 'energetic', emoji: '⚡', label: 'Energetic' },
+  ];
+
+  async function discoverMood(m) {
+    if (mood === m && !error) return; // already loaded
+    setMood(m);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${ML_API}/discover/mood/${m}`);
+      if (!res.ok) throw new Error(`${res.status}`);
+      const data = await res.json();
+      setMovies(data.results || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mood-discovery">
+      <h2 className="mood-discovery__title">Discover by Visual Mood</h2>
+      <div className="mood-discovery__filters">
+        {MOODS.map(m => (
+          <button 
+            key={m.id}
+            className={`mood-btn ${mood === m.id ? 'mood-btn--active' : ''}`}
+            onClick={() => discoverMood(m.id)}
+          >
+            <span className="mood-btn__icon">{m.emoji}</span>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      
+      {loading && (
+        <div className="state-center">
+          <div className="spinner" />
+          <p className="state-text">Analyzing trending posters...</p>
+        </div>
+      )}
+      
+      {error && !loading && (
+        <div className="state-center">
+          <span className="state-icon">⚠️</span>
+          <p className="state-title">Error</p>
+          <p className="state-text">Failed to fetch mood: {error}</p>
+        </div>
+      )}
+      
+      {!loading && !error && mood && movies.length === 0 && (
+        <div className="state-center">
+          <span className="state-icon">🔎</span>
+          <p className="state-title">No matches</p>
+          <p className="state-text">No trending movies match this mood right now.</p>
+        </div>
+      )}
+      
+      {!loading && !error && movies.length > 0 && (
+        <div className="mood-results">
+          {movies.map(item => (
+            <MediaCard key={item.id} item={item} onClick={onCardClick} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────── */
 /* Timeline Panel (Phases 2 + 3)                               */
 /* ─────────────────────────────────────────────────────────── */
 
@@ -510,7 +597,7 @@ export default function App() {
     <div className="app">
       <nav className="navbar">
         <span className="navbar__logo">CineVerse</span>
-        <span className="navbar__badge">Phase 3</span>
+        <span className="navbar__badge">Phase 5</span>
       </nav>
 
       <section className="hero">
@@ -552,11 +639,14 @@ export default function App() {
         {loading && <div className="state-center"><div className="spinner" /><p className="state-text">Searching…</p></div>}
         {!loading && error && <div className="state-center"><span className="state-icon">⚠️</span><p className="state-title">Error</p><p className="state-text">{error}</p></div>}
         {!loading && !error && results === null && (
-          <div className="state-center">
-            <span className="state-icon">🎬</span>
-            <p className="state-title">Find your next watch</p>
-            <p className="state-text">Search any title — click a result to see its timeline and Neo4j graph connections.</p>
-          </div>
+          <>
+            <MoodDiscovery onCardClick={setTimeline} />
+            <div className="state-center" style={{ marginTop: '3rem' }}>
+              <span className="state-icon">🎬</span>
+              <p className="state-title">Find your next watch</p>
+              <p className="state-text">Search any title — click a result to see its timeline and Neo4j graph connections.</p>
+            </div>
+          </>
         )}
         {!loading && !error && results !== null && !hasAny && (
           <div className="state-center"><span className="state-icon">🔎</span><p className="state-title">No results</p><p className="state-text">Try a different title.</p></div>
