@@ -1,5 +1,6 @@
 package com.cineverse.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -21,8 +22,8 @@ public class TmdbService {
 
     public TmdbService(
             RestClient.Builder restClientBuilder,
-            org.springframework.beans.factory.annotation.Value("${tmdb.api.base-url}") String baseUrl,
-            org.springframework.beans.factory.annotation.Value("${tmdb.api.key}") String apiKey) {
+            @Value("${tmdb.api.base-url}") String baseUrl,
+            @Value("${tmdb.api.key}") String apiKey) {
 
         this.restClient = restClientBuilder.baseUrl(baseUrl).build();
         this.apiKey = apiKey;
