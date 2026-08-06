@@ -60,92 +60,107 @@ public class TmdbService {
     /** Get a single movie by TMDB id — includes genres + collectionId. */
     @SuppressWarnings("unchecked")
     public MediaResult getMovieById(int tmdbId) {
-        Map<String, Object> r = restClient.get()
-                .uri(u -> u.path("/movie/{id}")
-                        .queryParam("api_key", apiKey)
-                        .build(tmdbId))
-                .retrieve()
-                .body(Map.class);
+        try {
+            Map<String, Object> r = restClient.get()
+                    .uri(u -> u.path("/movie/{id}")
+                            .queryParam("api_key", apiKey)
+                            .build(tmdbId))
+                    .retrieve()
+                    .body(Map.class);
 
-        if (r == null) return null;
+            if (r == null) return null;
 
-        List<Map<String, Object>> genreMaps =
-                (List<Map<String, Object>>) r.getOrDefault("genres", Collections.emptyList());
-        List<String> genres = genreMaps.stream()
-                .map(g -> (String) g.get("name"))
-                .collect(Collectors.toList());
+            List<Map<String, Object>> genreMaps =
+                    (List<Map<String, Object>>) r.getOrDefault("genres", Collections.emptyList());
+            List<String> genres = genreMaps.stream()
+                    .map(g -> (String) g.get("name"))
+                    .collect(Collectors.toList());
 
-        // Extract collection id for timeline (null if standalone film)
-        Map<String, Object> collection =
-                (Map<String, Object>) r.get("belongs_to_collection");
-        Integer collectionId = null;
-        if (collection != null && collection.get("id") instanceof Number n) {
-            collectionId = n.intValue();
+            // Extract collection id for timeline (null if standalone film)
+            Map<String, Object> collection =
+                    (Map<String, Object>) r.get("belongs_to_collection");
+            Integer collectionId = null;
+            if (collection != null && collection.get("id") instanceof Number n) {
+                collectionId = n.intValue();
+            }
+
+            return new MediaResult(
+                    String.valueOf(r.get("id")),
+                    (String) r.getOrDefault("title", ""),
+                    "movie",
+                    toYear((String) r.get("release_date")),
+                    safeString(r.get("overview")),
+                    toImageUrl((String) r.get("poster_path")),
+                    toRating(r.get("vote_average")),
+                    genres,
+                    collectionId
+            );
+        } catch (Exception e) {
+            System.err.println("TMDB getMovieById failed for id=" + tmdbId + ": " + e.getMessage());
+            return null;
         }
-
-        return new MediaResult(
-                String.valueOf(r.get("id")),
-                (String) r.getOrDefault("title", ""),
-                "movie",
-                toYear((String) r.get("release_date")),
-                safeString(r.get("overview")),
-                toImageUrl((String) r.get("poster_path")),
-                toRating(r.get("vote_average")),
-                genres,
-                collectionId
-        );
     }
 
     /** Fetch all parts of a TMDB collection sorted by release date. */
     @SuppressWarnings("unchecked")
     public CollectionResult getCollection(int collectionId) {
-        Map<String, Object> r = restClient.get()
-                .uri(u -> u.path("/collection/{id}")
-                        .queryParam("api_key", apiKey)
-                        .build(collectionId))
-                .retrieve()
-                .body(Map.class);
+        try {
+            Map<String, Object> r = restClient.get()
+                    .uri(u -> u.path("/collection/{id}")
+                            .queryParam("api_key", apiKey)
+                            .build(collectionId))
+                    .retrieve()
+                    .body(Map.class);
 
-        if (r == null) return null;
+            if (r == null) return null;
 
-        String name = safeString(r.get("name"));
-        List<Map<String, Object>> parts =
-                (List<Map<String, Object>>) r.getOrDefault("parts", Collections.emptyList());
+            String name = safeString(r.get("name"));
+            List<Map<String, Object>> parts =
+                    (List<Map<String, Object>>) r.getOrDefault("parts", Collections.emptyList());
 
-        List<MediaResult> entries = parts.stream()
-                .sorted((a, b) -> {
-                    String da = safeString(a.get("release_date"));
-                    String db = safeString(b.get("release_date"));
-                    return da.compareTo(db);
-                })
-                .map(p -> toMediaResult(p, "movie"))
-                .collect(Collectors.toList());
+            List<MediaResult> entries = parts.stream()
+                    .sorted((a, b) -> {
+                        String da = safeString(a.get("release_date"));
+                        String db = safeString(b.get("release_date"));
+                        return da.compareTo(db);
+                    })
+                    .map(p -> toMediaResult(p, "movie"))
+                    .collect(Collectors.toList());
 
-        return new CollectionResult(String.valueOf(collectionId), name, entries);
+            return new CollectionResult(String.valueOf(collectionId), name, entries);
+        } catch (Exception e) {
+            System.err.println("TMDB getCollection failed for id=" + collectionId + ": " + e.getMessage());
+            return null;
+        }
     }
 
     /** Phase 3 — Fetch top cast members for graph ingestion. */
     @SuppressWarnings("unchecked")
     public List<CastMember> getMovieCredits(int tmdbId) {
-        Map<String, Object> r = restClient.get()
-                .uri(u -> u.path("/movie/{id}/credits")
-                        .queryParam("api_key", apiKey)
-                        .build(tmdbId))
-                .retrieve()
-                .body(Map.class);
+        try {
+            Map<String, Object> r = restClient.get()
+                    .uri(u -> u.path("/movie/{id}/credits")
+                            .queryParam("api_key", apiKey)
+                            .build(tmdbId))
+                    .retrieve()
+                    .body(Map.class);
 
-        if (r == null) return Collections.emptyList();
+            if (r == null) return Collections.emptyList();
 
-        List<Map<String, Object>> cast =
-                (List<Map<String, Object>>) r.getOrDefault("cast", Collections.emptyList());
+            List<Map<String, Object>> cast =
+                    (List<Map<String, Object>>) r.getOrDefault("cast", Collections.emptyList());
 
-        return cast.stream()
-                .limit(10)   // top-billed only to keep graph lean
-                .map(c -> new CastMember(
-                        safeString(c.get("name")),
-                        safeString(c.get("character"))
-                ))
-                .collect(Collectors.toList());
+            return cast.stream()
+                    .limit(10)   // top-billed only to keep graph lean
+                    .map(c -> new CastMember(
+                            safeString(c.get("name")),
+                            safeString(c.get("character"))
+                    ))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("TMDB getMovieCredits failed for id=" + tmdbId + ": " + e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     /** A single cast member from TMDB credits. */

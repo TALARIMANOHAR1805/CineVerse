@@ -62,17 +62,33 @@ public class SearchController {
     /** Single movie detail by TMDB id — also triggers async graph ingest. */
     @GetMapping("/movies/{id}")
     public TmdbService.MediaResult movieDetail(@PathVariable int id) {
-        TmdbService.MediaResult result = tmdbService.getMovieById(id);
-        if (result == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found: " + id);
-        graphService.ingestMovie(result);  // async — never blocks response
-        return result;
+        try {
+            TmdbService.MediaResult result = tmdbService.getMovieById(id);
+            if (result == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found: " + id);
+            graphService.ingestMovie(result);  // async — never blocks response
+            return result;
+        } catch (ResponseStatusException rse) {
+            throw rse;
+        } catch (Exception e) {
+            System.err.println("[SearchController] movieDetail error for id=" + id + ": " + e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "TMDB API unavailable — try again later");
+        }
     }
 
     /** Single anime detail by MAL id */
     @GetMapping("/anime/{id}")
     public TmdbService.MediaResult animeDetail(@PathVariable int id) {
-        TmdbService.MediaResult result = jikanService.getAnimeById(id);
-        if (result == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Anime not found: " + id);
-        return result;
+        try {
+            TmdbService.MediaResult result = jikanService.getAnimeById(id);
+            if (result == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Anime not found: " + id);
+            return result;
+        } catch (ResponseStatusException rse) {
+            throw rse;
+        } catch (Exception e) {
+            System.err.println("[SearchController] animeDetail error for id=" + id + ": " + e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Jikan API unavailable — try again later");
+        }
     }
 }

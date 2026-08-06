@@ -23,17 +23,33 @@ public class TimelineController {
 
     @GetMapping("/movie/{tmdbId}")
     public TimelineService.TimelineResponse movieTimeline(@PathVariable int tmdbId) {
-        TimelineService.TimelineResponse result = timelineService.getMovieTimeline(tmdbId);
-        if (result == null)
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found: " + tmdbId);
-        return result;
+        try {
+            TimelineService.TimelineResponse result = timelineService.getMovieTimeline(tmdbId);
+            if (result == null)
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found: " + tmdbId);
+            return result;
+        } catch (ResponseStatusException rse) {
+            throw rse;
+        } catch (Exception e) {
+            System.err.println("[TimelineController] movie timeline error for id=" + tmdbId + ": " + e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "TMDB API unavailable — try again later");
+        }
     }
 
     @GetMapping("/anime/{malId}")
     public TimelineService.TimelineResponse animeTimeline(@PathVariable int malId) {
-        TimelineService.TimelineResponse result = timelineService.getAnimeTimeline(malId);
-        if (result == null)
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Anime not found: " + malId);
-        return result;
+        try {
+            TimelineService.TimelineResponse result = timelineService.getAnimeTimeline(malId);
+            if (result == null)
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Anime not found: " + malId);
+            return result;
+        } catch (ResponseStatusException rse) {
+            throw rse;
+        } catch (Exception e) {
+            System.err.println("[TimelineController] anime timeline error for id=" + malId + ": " + e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Jikan API unavailable — try again later");
+        }
     }
 }

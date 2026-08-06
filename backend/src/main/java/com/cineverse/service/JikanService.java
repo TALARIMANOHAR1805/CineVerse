@@ -52,14 +52,19 @@ public class JikanService {
     /** Get a single anime by MAL id. */
     @SuppressWarnings("unchecked")
     public TmdbService.MediaResult getAnimeById(int malId) {
-        Map<String, Object> response = restClient.get()
-                .uri(u -> u.path("/anime/{id}").build(malId))
-                .retrieve()
-                .body(Map.class);
+        try {
+            Map<String, Object> response = restClient.get()
+                    .uri(u -> u.path("/anime/{id}").build(malId))
+                    .retrieve()
+                    .body(Map.class);
 
-        if (response == null) return null;
-        Map<String, Object> data = (Map<String, Object>) response.get("data");
-        return data == null ? null : toMediaResult(data);
+            if (response == null) return null;
+            Map<String, Object> data = (Map<String, Object>) response.get("data");
+            return data == null ? null : toMediaResult(data);
+        } catch (Exception e) {
+            System.err.println("Jikan getAnimeById failed for id=" + malId + ": " + e.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -70,23 +75,34 @@ public class JikanService {
      * Depth-limited to 20 hops to avoid cycles.
      */
     public TimelineService.TimelineResponse getAnimeTimeline(int startMalId) {
-        // Step 1 — walk back to find the root of the series
-        int rootId = findSeriesRoot(startMalId, new HashSet<>(), 0);
+        try {
+            // Step 1 — walk back to find the root of the series
+            int rootId = findSeriesRoot(startMalId, new HashSet<>(), 0);
 
-        // Step 2 — walk forward from root collecting SEQUEL chain
-        List<TimelineService.TimelineEntry> entries = new ArrayList<>();
-        collectSequels(rootId, entries, new HashSet<>(), 0);
+            // Step 2 — walk forward from root collecting SEQUEL chain
+            List<TimelineService.TimelineEntry> entries = new ArrayList<>();
+            collectSequels(rootId, entries, new HashSet<>(), 0);
 
-        // Step 3 — find series name from root entry
-        TmdbService.MediaResult root = getAnimeById(rootId);
-        String seriesName = root != null ? root.title() : "Anime Series";
+            // Step 3 — find series name from root entry
+            TmdbService.MediaResult root = getAnimeById(rootId);
+            String seriesName = root != null ? root.title() : "Anime Series";
 
-        return new TimelineService.TimelineResponse(
-                seriesName,
-                "anime",
-                String.valueOf(startMalId),
-                entries
-        );
+            return new TimelineService.TimelineResponse(
+                    seriesName,
+                    "anime",
+                    String.valueOf(startMalId),
+                    entries
+            );
+        } catch (Exception e) {
+            // Jikan API outage — return graceful empty timeline instead of 500
+            System.err.println("[JikanService] getAnimeTimeline failed for malId=" + startMalId + ": " + e.getMessage());
+            return new TimelineService.TimelineResponse(
+                    "Anime Series",
+                    "anime",
+                    String.valueOf(startMalId),
+                    Collections.emptyList()
+            );
+        }
     }
 
     // ── Private helpers ─────────────────────────────────────────

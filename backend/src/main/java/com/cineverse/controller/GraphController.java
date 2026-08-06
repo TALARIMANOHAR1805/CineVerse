@@ -2,7 +2,9 @@ package com.cineverse.controller;
 
 import com.cineverse.service.GraphService;
 import com.cineverse.service.TmdbService;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * GraphController — Phase 3: Neo4j Graph Discovery
@@ -29,7 +31,13 @@ public class GraphController {
     /** Get graph-connected movies for a given TMDB movie id. */
     @GetMapping("/related/movie/{tmdbId}")
     public GraphService.GraphResult relatedMovies(@PathVariable String tmdbId) {
-        return graphService.getRelated(tmdbId);
+        try {
+            return graphService.getRelated(tmdbId);
+        } catch (Exception e) {
+            System.err.println("[GraphController] relatedMovies error for id=" + tmdbId + ": " + e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Graph DB unavailable — try again later");
+        }
     }
 
     /**
@@ -38,11 +46,16 @@ public class GraphController {
      */
     @PostMapping("/ingest/movie/{tmdbId}")
     public String ingestMovie(@PathVariable int tmdbId) {
-        TmdbService.MediaResult movie = tmdbService.getMovieById(tmdbId);
-        if (movie != null) {
-            graphService.ingestMovie(movie);
-            return "Ingest started for: " + movie.title();
+        try {
+            TmdbService.MediaResult movie = tmdbService.getMovieById(tmdbId);
+            if (movie != null) {
+                graphService.ingestMovie(movie);
+                return "Ingest started for: " + movie.title();
+            }
+            return "Movie not found in TMDB";
+        } catch (Exception e) {
+            System.err.println("[GraphController] ingestMovie error for id=" + tmdbId + ": " + e.getMessage());
+            return "TMDB API unavailable — could not fetch movie " + tmdbId;
         }
-        return "Movie not found in TMDB";
     }
 }
