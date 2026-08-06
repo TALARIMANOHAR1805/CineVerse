@@ -1,7 +1,9 @@
 package com.cineverse.service;
 
+import com.cineverse.model.Franchise;
 import com.cineverse.model.Movie;
 import com.cineverse.model.Person;
+import com.cineverse.repository.FranchiseRepository;
 import com.cineverse.repository.MovieGraphProjection;
 import com.cineverse.repository.MovieRepository;
 import com.cineverse.repository.PersonRepository;
@@ -23,24 +25,31 @@ import java.util.stream.Collectors;
 @Service
 public class GraphService {
 
-    private final TmdbService    tmdbService;
-    private final MovieRepository movieRepository;
-    private final PersonRepository personRepository;
+    private final TmdbService       tmdbService;
+    private final MovieRepository   movieRepository;
+    private final PersonRepository  personRepository;
+    private final FranchiseRepository franchiseRepository;
 
     public GraphService(TmdbService tmdbService,
                         MovieRepository movieRepository,
-                        PersonRepository personRepository) {
-        this.tmdbService      = tmdbService;
-        this.movieRepository  = movieRepository;
-        this.personRepository = personRepository;
+                        PersonRepository personRepository,
+                        FranchiseRepository franchiseRepository) {
+        this.tmdbService         = tmdbService;
+        this.movieRepository     = movieRepository;
+        this.personRepository    = personRepository;
+        this.franchiseRepository = franchiseRepository;
     }
 
     // ── Ingest ─────────────────────────────────────────────────
 
     /**
-     * Saves a movie and its top cast to Neo4j.
+     * Saves a movie and its top cast (and franchise) to Neo4j.
      * Called async so it never blocks the search/detail response.
      * Idempotent — skips if the movie is already in the graph.
+     *
+     * BUG FIX (Phase C): Previously collectionId was available in MediaResult
+     * but never used — Franchise nodes were never created, so PART_OF edges
+     * were absent from the graph. Fixed here.
      */
     @Async
     public void ingestMovie(TmdbService.MediaResult media) {
@@ -55,15 +64,33 @@ public class GraphService {
             movie.setYear(media.year());
             movie.setPosterUrl(media.posterUrl());
             movie.setRating(media.rating());
+
+            // ── Franchise / Collection (Phase C fix) ──────────────────
+            // If the movie belongs to a TMDB collection, create/find the
+            // Franchise node and set the PART_OF relationship.
+            if (media.collectionId() != null) {
+                try {
+                    TmdbService.CollectionResult col = tmdbService.getCollection(media.collectionId());
+                    if (col != null && col.name() != null) {
+                        Franchise franchise = franchiseRepository
+                                .findByName(col.name())
+                                .orElseGet(() -> franchiseRepository.save(new Franchise(col.name())));
+                        movie.setFranchise(franchise);
+                    }
+                } catch (Exception fe) {
+                    System.err.println("[GraphService] franchise ingest failed for collectionId="
+                            + media.collectionId() + ": " + fe.getMessage());
+                }
+            }
+
             movieRepository.save(movie);
 
-            // Fetch and persist cast
+            // ── Cast ──────────────────────────────────────────────────
             List<TmdbService.CastMember> credits = tmdbService.getMovieCredits(
                     Integer.parseInt(tmdbId)
             );
 
             for (TmdbService.CastMember cast : credits) {
-                // Find existing person or create new
                 Optional<Person> existing = personRepository.findByName(cast.name());
                 Person person = existing.orElseGet(() -> {
                     Person p = new Person(cast.name());
@@ -74,7 +101,6 @@ public class GraphService {
 
             movieRepository.save(movie);   // save with ACTED_IN edges
         } catch (Exception e) {
-            // Non-critical — graph enrichment failure should never break the API
             System.err.println("[GraphService] ingest failed for " + media.id() + ": " + e.getMessage());
         }
     }

@@ -46,4 +46,16 @@ public interface MovieRepository extends Neo4jRepository<Movie, Long> {
             LIMIT 8
             """)
     List<MovieGraphProjection> findFranchiseSiblings(String tmdbId);
+
+    /**
+     * Phase C — Watch-order query.
+     * Returns all movies in a franchise ordered by release year (ascending).
+     */
+    @Query("""
+            MATCH (f:Franchise {name: $franchiseName})<-[:PART_OF]-(m:Movie)
+            RETURN m {.tmdbId, .title, .year, .posterUrl, .rating,
+                      sharedActors: null, connectionCount: null}
+            ORDER BY m.year ASC
+            """)
+    List<MovieGraphProjection> findMoviesByFranchiseName(String franchiseName);
 }

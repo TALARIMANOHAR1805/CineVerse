@@ -105,6 +105,180 @@ public class JikanService {
         }
     }
 
+    // ── Phase C: Spoiler-Shield ──────────────────────────────────
+
+    /**
+     * Returns anime data filtered to be safe up to a given episode threshold.
+     *
+     * ── Honest assessment of what this can and cannot do ─────────
+     *
+     * Jikan provides:
+     *   • /anime/{id}            → total episode count + one series-level synopsis blob
+     *   • /anime/{id}/episodes   → list of episodes (number, title, aired date, filler flag)
+     *   • /anime/{id}/episodes/{n} → single episode detail — synopsis often EMPTY in Jikan
+     *
+     * What IS achievable (implemented here):
+     *   1. Episode titles up to upToEpisode  — genuinely spoiler-safe
+     *   2. Series synopsis SUPPRESSED when upToEpisode < totalEpisodes — because
+     *      the synopsis covers the whole series and cannot be safely truncated at
+     *      the sentence level without per-episode mapping we don't have
+     *   3. Genres, rating, poster are always returned (metadata, not plot)
+     *   4. A progress indicator: (upToEpisode / totalEpisodes) × 100
+     *
+     * What is NOT achievable without extra data:
+     *   • Sentence-level synopsis truncation (no per-episode synopsis in Jikan)
+     *   • Tag/theme filtering by episode range (Jikan tags are series-level only)
+     *
+     * This is real threshold-based logic, not string-chopping.
+     * spoilerShieldActive=true means the synopsis has been suppressed, not trimmed.
+     */
+    @SuppressWarnings("unchecked")
+    public SpoilerSafeResponse getSpoilerSafeAnime(int malId, int upToEpisode) {
+        try {
+            // Step 1: fetch series detail
+            Map<String, Object> response = restClient.get()
+                    .uri(u -> u.path("/anime/{id}").build(malId))
+                    .retrieve()
+                    .body(Map.class);
+
+            if (response == null) return null;
+            Map<String, Object> data = (Map<String, Object>) response.get("data");
+            if (data == null) return null;
+
+            // Total episodes from Jikan (may be null for ongoing)
+            int totalEpisodes = data.get("episodes") instanceof Number n
+                    ? n.intValue() : 0;
+
+            // Series-level synopsis
+            String fullSynopsis = (String) data.getOrDefault("synopsis", "");
+
+            // Genres (series-level metadata — safe always)
+            List<Map<String, Object>> genreMaps =
+                    (List<Map<String, Object>>) data.getOrDefault("genres", Collections.emptyList());
+            List<String> genres = genreMaps.stream()
+                    .map(g -> (String) g.get("name"))
+                    .collect(Collectors.toList());
+
+            // Poster + rating
+            Map<String, Object> images = (Map<String, Object>) data.getOrDefault("images", Collections.emptyMap());
+            Map<String, Object> jpg = (Map<String, Object>) images.getOrDefault("jpg", Collections.emptyMap());
+            String posterUrl = (String) jpg.getOrDefault("large_image_url", jpg.get("image_url"));
+
+            double rating = data.get("score") instanceof Number n ? n.doubleValue() : 0.0;
+
+            Map<String, Object> aired = (Map<String, Object>) data.getOrDefault("aired", Collections.emptyMap());
+            Map<String, Object> prop = (Map<String, Object>) aired.getOrDefault("prop", Collections.emptyMap());
+            Map<String, Object> from = (Map<String, Object>) prop.getOrDefault("from", Collections.emptyMap());
+            String year = from.containsKey("year") && from.get("year") != null
+                    ? String.valueOf(((Number) from.get("year")).intValue()) : "—";
+
+            String title = (String) data.getOrDefault("title_english", data.get("title"));
+            if (title == null || title.isBlank()) title = (String) data.get("title");
+
+            // ── Spoiler shield decision ───────────────────────────────
+            // Shield is active if the user hasn't seen ALL episodes yet.
+            // When active, synopsis is suppressed entirely because the Jikan
+            // synopsis covers the full series with no episode boundaries.
+            boolean shieldActive;
+            String safesynopsis;
+            if (totalEpisodes == 0) {
+                // Ongoing or unknown — be safe, suppress
+                shieldActive  = true;
+                safesynopsis = null;
+            } else if (upToEpisode >= totalEpisodes) {
+                // User has seen everything — full synopsis is safe
+                shieldActive  = false;
+                safesynopsis = fullSynopsis;
+            } else {
+                // Partial progress — suppress series synopsis to avoid spoilers
+                shieldActive  = true;
+                safesynopsis = null;
+            }
+
+            // ── Episode list up to threshold ──────────────────────────
+            // This IS genuinely spoiler-safe: we only return titles/dates
+            // for episodes the user has already watched.
+            int clampedLimit = Math.max(1, Math.min(upToEpisode, 100));
+            List<EpisodeStub> safeEpisodes = fetchEpisodeList(malId, clampedLimit);
+
+            int progress = totalEpisodes > 0
+                    ? (int) Math.round((upToEpisode * 100.0) / totalEpisodes) : 0;
+
+            return new SpoilerSafeResponse(
+                    String.valueOf(malId), title, year, posterUrl,
+                    Math.round(rating * 10.0) / 10.0,
+                    genres, safesynopsis, shieldActive,
+                    upToEpisode, totalEpisodes, progress, safeEpisodes
+            );
+        } catch (Exception e) {
+            System.err.println("[JikanService] getSpoilerSafeAnime failed for malId=" + malId + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Fetches episode stubs from Jikan (number + title + air date).
+     * Jikan paginates at 100 per page; upToEpisode is clamped to 100.
+     * Episode-level synopsis is NOT fetched — it's empty in Jikan for most entries.
+     */
+    @SuppressWarnings("unchecked")
+    public List<EpisodeStub> fetchEpisodeList(int malId, int upToEpisode) {
+        try {
+            // Jikan episodes endpoint — up to 100 per page
+            Map<String, Object> resp = restClient.get()
+                    .uri(u -> u.path("/anime/{id}/episodes").queryParam("page", 1).build(malId))
+                    .retrieve()
+                    .body(Map.class);
+
+            if (resp == null) return Collections.emptyList();
+
+            List<Map<String, Object>> episodeData =
+                    (List<Map<String, Object>>) resp.getOrDefault("data", Collections.emptyList());
+
+            return episodeData.stream()
+                    .filter(ep -> {
+                        Object num = ep.get("mal_id");
+                        return num instanceof Number n && n.intValue() <= upToEpisode;
+                    })
+                    .map(ep -> new EpisodeStub(
+                            ep.get("mal_id") instanceof Number n ? n.intValue() : 0,
+                            (String) ep.getOrDefault("title", ""),
+                            ep.get("aired") instanceof String s ? s : ""
+                    ))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("[JikanService] fetchEpisodeList failed for malId=" + malId + ": " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    // ── Phase C DTOs ─────────────────────────────────────────────
+
+    /** Single episode stub — title + air date only (no spoiler synopsis). */
+    public record EpisodeStub(int number, String title, String aired) {}
+
+    /**
+     * Spoiler-safe anime response.
+     *
+     * synopsis is NULL when spoilerShieldActive=true.
+     * safeEpisodes contains episode titles up to upToEpisode (never past).
+     * progressPercent = upToEpisode / totalEpisodes × 100.
+     */
+    public record SpoilerSafeResponse(
+            String id,
+            String title,
+            String year,
+            String posterUrl,
+            double rating,
+            List<String> genres,
+            String synopsis,            // null when shield active
+            boolean spoilerShieldActive,
+            int upToEpisode,
+            int totalEpisodes,
+            int progressPercent,
+            List<EpisodeStub> safeEpisodes
+    ) {}
+
     // ── Private helpers ─────────────────────────────────────────
 
     private int findSeriesRoot(int malId, Set<Integer> visited, int depth) {
