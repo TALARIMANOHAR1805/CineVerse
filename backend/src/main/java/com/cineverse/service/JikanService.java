@@ -148,6 +148,10 @@ public class JikanService {
             // Total episodes from Jikan (may be null for ongoing)
             int totalEpisodes = data.get("episodes") instanceof Number n
                     ? n.intValue() : 0;
+            
+            if (totalEpisodes == 0) {
+                totalEpisodes = getEstimatedTotalEpisodes(malId);
+            }
 
             // Series-level synopsis
             String fullSynopsis = (String) data.getOrDefault("synopsis", "");
@@ -393,6 +397,43 @@ public class JikanService {
                 genres,
                 null  // no TMDB collectionId for anime
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private int getEstimatedTotalEpisodes(int malId) {
+        try {
+            Map<String, Object> resp = restClient.get()
+                    .uri(u -> u.path("/anime/{id}/episodes").queryParam("page", 1).build(malId))
+                    .retrieve()
+                    .body(Map.class);
+            if (resp != null) {
+                Map<String, Object> pagination = (Map<String, Object>) resp.get("pagination");
+                if (pagination != null) {
+                    int lastPage = pagination.get("last_visible_page") instanceof Number n ? n.intValue() : 1;
+                    if (lastPage == 1) {
+                        List<Map<String, Object>> data = (List<Map<String, Object>>) resp.get("data");
+                        return data != null ? data.size() : 0;
+                    }
+                    try { Thread.sleep(350); } catch (InterruptedException ignored) {} // Rate limit
+                    // Fetch last page to get exact last episode number
+                    Map<String, Object> lastPageResp = restClient.get()
+                            .uri(u -> u.path("/anime/{id}/episodes").queryParam("page", lastPage).build(malId))
+                            .retrieve()
+                            .body(Map.class);
+                    if (lastPageResp != null) {
+                        List<Map<String, Object>> data = (List<Map<String, Object>>) lastPageResp.get("data");
+                        if (data != null && !data.isEmpty()) {
+                            Map<String, Object> lastEp = data.get(data.size() - 1);
+                            return lastEp.get("mal_id") instanceof Number n ? n.intValue() : lastPage * 100;
+                        }
+                    }
+                    return lastPage * 100; // rough fallback
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[JikanService] Failed to estimate total episodes: " + e.getMessage());
+        }
+        return 0;
     }
 
     /** Lightweight internal record — NOT needed, using TimelineService.TimelineEntry instead. */

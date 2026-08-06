@@ -3,7 +3,7 @@ poster.py — Phase 4: Poster image analysis.
 
 Features:
   1. Dominant color extraction (for UI theming)
-  2. Brightness / mood classification (dark, medium, bright)
+  2. Brightness / vibe classification (dark, medium, bright)
   3. Color palette generation
 
 Uses Pillow + colorthief — no GPU required, runs on any CPU.
@@ -18,7 +18,7 @@ from colorthief import ColorThief
 async def analyze_poster(poster_url: str) -> dict:
     """
     Download a movie poster and extract visual features.
-    Returns dominant color, palette, brightness, and mood.
+    Returns dominant color, palette, brightness, and vibe.
     """
     image_bytes = await _download_image(poster_url)
     if not image_bytes:
@@ -30,9 +30,9 @@ async def analyze_poster(poster_url: str) -> dict:
         dominant = ct.get_color(quality=5)
         palette = ct.get_palette(color_count=5, quality=5)
 
-        # Brightness & mood
+        # Brightness & vibe
         brightness = _brightness(dominant)
-        mood = _classify_mood(brightness, dominant)
+        vibe = _classify_vibe(brightness, dominant)
 
         return {
             "posterUrl": poster_url,
@@ -41,7 +41,7 @@ async def analyze_poster(poster_url: str) -> dict:
             "palette": [_rgb_hex(c) for c in palette],
             "paletteRgb": [list(c) for c in palette],
             "brightness": round(brightness, 2),
-            "mood": mood,
+            "vibe": vibe,
         }
     except Exception as e:
         return {"error": str(e), "posterUrl": poster_url}
@@ -65,8 +65,8 @@ def _brightness(rgb: tuple[int, int, int]) -> float:
     return 0.299 * r + 0.587 * g + 0.114 * b
 
 
-def _classify_mood(brightness: float, rgb: tuple[int, int, int]) -> str:
-    """Classify the visual mood based on brightness and color."""
+def _classify_vibe(brightness: float, rgb: tuple[int, int, int]) -> str:
+    """Classify the visual vibe based on brightness and color."""
     r, g, b = rgb
     saturation = max(r, g, b) - min(r, g, b)
 

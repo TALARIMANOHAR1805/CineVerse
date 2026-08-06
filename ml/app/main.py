@@ -5,7 +5,7 @@ Endpoints:
   GET  /health                     → service health check
   POST /api/ml/recommend           → content-based movie recommendations
   POST /api/ml/poster/analyze      → poster image analysis (colors, mood)
-  GET  /api/ml/mood/{mood}         → discover movies by visual mood
+  GET  /api/ml/vibe/{vibe}         → discover movies by visual vibe
 """
 
 import os
@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.recommend import get_recommendations, discover_movies_by_mood
+from app.recommend import get_recommendations, discover_movies_by_vibe
 from app.poster import analyze_poster
 
 app = FastAPI(
@@ -114,40 +114,40 @@ async def poster_analyze(req: PosterAnalyzeRequest):
     return result
 
 
-@app.get("/api/ml/mood/{mood}")
-async def mood_info(mood: str):
+@app.get("/api/ml/vibe/{vibe}")
+async def vibe_info(vibe: str):
     """
-    Returns the mood classification info.
-    Available moods: dark, moody, intense, vibrant, neutral, bright, energetic.
+    Returns the vibe classification info.
+    Available vibes: dark, moody, intense, vibrant, neutral, bright, energetic.
     """
-    valid_moods = ["dark", "moody", "intense", "vibrant", "neutral", "bright", "energetic"]
-    if mood.lower() not in valid_moods:
+    valid_vibes = ["dark", "moody", "intense", "vibrant", "neutral", "bright", "energetic"]
+    if vibe.lower() not in valid_vibes:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown mood '{mood}'. Valid: {', '.join(valid_moods)}"
+            detail=f"Unknown vibe '{vibe}'. Valid: {', '.join(valid_vibes)}"
         )
     return {
-        "mood": mood.lower(),
-        "description": _mood_description(mood.lower()),
-        "validMoods": valid_moods,
+        "vibe": vibe.lower(),
+        "description": _vibe_description(vibe.lower()),
+        "validVibes": valid_vibes,
     }
 
-@app.get("/api/ml/discover/mood/{mood}")
-async def discover_by_mood(mood: str):
+@app.get("/api/ml/discover/vibe/{vibe}")
+async def discover_by_vibe(vibe: str):
     """
-    Returns movies matching the specified visual mood.
+    Returns movies matching the specified visual vibe.
     """
-    valid_moods = ["dark", "moody", "intense", "vibrant", "neutral", "bright", "energetic"]
-    if mood.lower() not in valid_moods:
+    valid_vibes = ["dark", "moody", "intense", "vibrant", "neutral", "bright", "energetic"]
+    if vibe.lower() not in valid_vibes:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown mood '{mood}'. Valid: {', '.join(valid_moods)}"
+            detail=f"Unknown vibe '{vibe}'. Valid: {', '.join(valid_vibes)}"
         )
     try:
-        movies = await discover_movies_by_mood(mood.lower(), limit=12)
+        movies = await discover_movies_by_vibe(vibe.lower(), limit=12)
         return {
-            "mood": mood.lower(),
-            "description": _mood_description(mood.lower()),
+            "vibe": vibe.lower(),
+            "description": _vibe_description(vibe.lower()),
             "count": len(movies),
             "results": movies
         }
@@ -155,7 +155,7 @@ async def discover_by_mood(mood: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _mood_description(mood: str) -> str:
+def _vibe_description(vibe: str) -> str:
     return {
         "dark": "Films with dark, shadowy posters — thrillers, horror, noir",
         "moody": "Low-key, atmospheric visuals — drama, mystery",
@@ -164,4 +164,5 @@ def _mood_description(mood: str) -> str:
         "neutral": "Balanced tones — drama, biographical, indie",
         "bright": "Light, pastel tones — romance, family, feel-good",
         "energetic": "Bright and highly saturated — action-comedy, animation, superhero",
-    }.get(mood, "")
+    }.get(vibe, "")
+

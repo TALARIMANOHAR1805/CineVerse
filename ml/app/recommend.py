@@ -151,10 +151,10 @@ def _extract_year(date_str: str) -> str:
 def _poster_url(path: str | None) -> str | None:
     return f"https://image.tmdb.org/t/p/w500{path}" if path else None
 
-async def discover_movies_by_mood(mood: str, limit: int = 12) -> list[dict]:
+async def discover_movies_by_vibe(vibe: str, limit: int = 12) -> list[dict]:
     """
     Fetches trending/popular movies, analyzes their posters concurrently,
-    and filters them by the requested visual mood.
+    and filters them by the requested visual vibe.
     """
     candidates = []
     genre_map = await _get_genre_map()
@@ -181,7 +181,7 @@ async def discover_movies_by_mood(mood: str, limit: int = 12) -> list[dict]:
         p_url = _poster_url(m.get("poster_path"))
         if not p_url: return None
         analysis = await analyze_poster(p_url)
-        if analysis.get("mood") == mood:
+        if analysis.get("vibe") == vibe:
             return {
                 "id": str(m.get("id", "")),
                 "type": "movie",

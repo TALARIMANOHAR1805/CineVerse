@@ -277,32 +277,32 @@ function MLRecommendations({ item }) {
 }
 
 /* ─────────────────────────────────────────────────────────── */
-/* Mood Discovery Component (Phase 5)                          */
+/* Vibe Match Component (Phase 5)                              */
 /* ─────────────────────────────────────────────────────────── */
 
-function MoodDiscovery({ onCardClick }) {
-  const [mood, setMood] = useState(null);
+function VibeMatch({ onCardClick }) {
+  const [vibe, setVibe] = useState(null);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const MOODS = [
-    { id: 'dark', emoji: '🌑', label: 'Dark' },
-    { id: 'moody', emoji: '🌧️', label: 'Moody' },
-    { id: 'intense', emoji: '🔥', label: 'Intense' },
-    { id: 'vibrant', emoji: '✨', label: 'Vibrant' },
-    { id: 'neutral', emoji: '⚖️', label: 'Neutral' },
-    { id: 'bright', emoji: '☀️', label: 'Bright' },
-    { id: 'energetic', emoji: '⚡', label: 'Energetic' },
+  const VIBES = [
+    { id: 'dark', emoji: '🌑', label: 'Bleak & Gritty' },
+    { id: 'moody', emoji: '🌧️', label: 'Moody & Atmospheric' },
+    { id: 'intense', emoji: '🔥', label: 'Intense & Heavy' },
+    { id: 'vibrant', emoji: '✨', label: 'Neon Cyberpunk' },
+    { id: 'neutral', emoji: '⚖️', label: 'Neutral & Balanced' },
+    { id: 'bright', emoji: '☀️', label: 'Cozy & Warm' },
+    { id: 'energetic', emoji: '⚡', label: 'Energetic & Pop' },
   ];
 
-  async function discoverMood(m) {
-    if (mood === m && !error) return; // already loaded
-    setMood(m);
+  async function discoverVibe(v) {
+    if (vibe === v && !error) return; // already loaded
+    setVibe(v);
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${ML_API}/discover/mood/${m}`);
+      const res = await fetch(`${ML_API}/discover/vibe/${v}`);
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
       setMovies(data.results || []);
@@ -314,17 +314,17 @@ function MoodDiscovery({ onCardClick }) {
   }
 
   return (
-    <div className="mood-discovery">
-      <h2 className="mood-discovery__title">Discover by Visual Mood</h2>
-      <div className="mood-discovery__filters">
-        {MOODS.map(m => (
+    <div className={`vibe-match ${loading ? 'vibe-match--scanning' : ''}`}>
+      <h2 className="vibe-match__title">Vibe Match <span>(Aesthetic Matcher)</span></h2>
+      <div className="vibe-match__filters">
+        {VIBES.map(v => (
           <button 
-            key={m.id}
-            className={`mood-btn ${mood === m.id ? 'mood-btn--active' : ''}`}
-            onClick={() => discoverMood(m.id)}
+            key={v.id}
+            className={`vibe-btn ${vibe === v.id ? 'vibe-btn--active' : ''}`}
+            onClick={() => discoverVibe(v.id)}
           >
-            <span className="mood-btn__icon">{m.emoji}</span>
-            {m.label}
+            <span className="vibe-btn__icon">{v.emoji}</span>
+            {v.label}
           </button>
         ))}
       </div>
@@ -340,11 +340,11 @@ function MoodDiscovery({ onCardClick }) {
         <div className="state-center">
           <span className="state-icon">⚠️</span>
           <p className="state-title">Error</p>
-          <p className="state-text">Failed to fetch mood: {error}</p>
+          <p className="state-text">Failed to fetch vibe: {error}</p>
         </div>
       )}
       
-      {!loading && !error && mood && movies.length === 0 && (
+      {!loading && !error && vibe && movies.length === 0 && (
         <div className="state-center">
           <span className="state-icon">🔎</span>
           <p className="state-title">No matches</p>
@@ -353,7 +353,7 @@ function MoodDiscovery({ onCardClick }) {
       )}
       
       {!loading && !error && movies.length > 0 && (
-        <div className="mood-results">
+        <div className="vibe-match__grid">
           {movies.map(item => (
             <MediaCard key={item.id} item={item} onClick={onCardClick} />
           ))}
@@ -572,9 +572,11 @@ export default function App() {
     { id: 'all',   label: 'All' },
     { id: 'movie', label: '🎬 Movies' },
     { id: 'anime', label: '🎌 Anime' },
+    { id: 'vibe',  label: '✨ Vibe Match' },
   ];
 
   async function doSearch(q = query, t = tab) {
+    if (t === 'vibe') { setResults(null); return; }
     const trimmed = q.trim();
     if (!trimmed) return;
     setLoading(true); setError(null);
@@ -590,7 +592,7 @@ export default function App() {
     }
   }
 
-  function switchTab(t) { setTab(t); if (results) doSearch(query, t); }
+  function switchTab(t) { setTab(t); if (results || t === 'vibe') doSearch(query, t); }
 
   const hasMovies = results?.movies?.length > 0;
   const hasAnime  = results?.anime?.length > 0;
@@ -641,20 +643,20 @@ export default function App() {
       <main className="content" id="results">
         {loading && <div className="state-center"><div className="spinner" /><p className="state-text">Searching…</p></div>}
         {!loading && error && <div className="state-center"><span className="state-icon">⚠️</span><p className="state-title">Error</p><p className="state-text">{error}</p></div>}
-        {!loading && !error && results === null && (
-          <>
-            <MoodDiscovery onCardClick={setTimeline} />
-            <div className="state-center" style={{ marginTop: '3rem' }}>
-              <span className="state-icon">🎬</span>
-              <p className="state-title">Find your next watch</p>
-              <p className="state-text">Search any title — click a result to see its timeline and Neo4j graph connections.</p>
-            </div>
-          </>
+        {!loading && !error && tab === 'vibe' && (
+          <VibeMatch onCardClick={setTimeline} />
         )}
-        {!loading && !error && results !== null && !hasAny && (
+        {!loading && !error && tab !== 'vibe' && results === null && (
+          <div className="state-center" style={{ marginTop: '3rem' }}>
+            <span className="state-icon">🎬</span>
+            <p className="state-title">Find your next watch</p>
+            <p className="state-text">Search any title — click a result to see its timeline and Neo4j graph connections.</p>
+          </div>
+        )}
+        {!loading && !error && tab !== 'vibe' && results !== null && !hasAny && (
           <div className="state-center"><span className="state-icon">🔎</span><p className="state-title">No results</p><p className="state-text">Try a different title.</p></div>
         )}
-        {!loading && !error && hasAny && (
+        {!loading && !error && tab !== 'vibe' && hasAny && (
           <>
             {(tab === 'all' || tab === 'movie') && <ResultsSection title="Movies" icon="🎬" items={results.movies} onCardClick={setTimeline} />}
             {(tab === 'all' || tab === 'anime') && <ResultsSection title="Anime"  icon="🎌" items={results.anime}  onCardClick={setTimeline} />}

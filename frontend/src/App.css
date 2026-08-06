@@ -820,13 +820,13 @@
 /* Mood Discovery (Phase 5)                                    */
 /* ─────────────────────────────────────────────────────────── */
 
-.mood-discovery {
+.vibe-match {
   margin: 0 auto 3rem auto;
   max-width: 900px;
   text-align: center;
 }
 
-.mood-discovery__title {
+.vibe-match__title {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
@@ -835,7 +835,7 @@
   -webkit-text-fill-color: transparent;
 }
 
-.mood-discovery__filters {
+.vibe-match__filters {
   display: flex;
   flex-wrap: wrap;
   gap: 0.8rem;
@@ -843,7 +843,7 @@
   margin-bottom: 2rem;
 }
 
-.mood-btn {
+.vibe-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -858,25 +858,46 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.mood-btn:hover {
+.vibe-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
   color: var(--text-1);
 }
 
-.mood-btn--active {
+.vibe-btn--active {
   background: rgba(124, 111, 255, 0.2);
   border-color: var(--accent);
   color: var(--accent);
 }
 
-.mood-btn__icon {
+.vibe-btn__icon {
   font-size: 1.1rem;
 }
 
-.mood-results {
+.vibe-match__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 1.5rem;
   margin-top: 1rem;
+}
+/* Vibe Match Scanning Animation */
+@keyframes colorScan {
+  0% { box-shadow: 0 0 10px rgba(255,255,255,0.1), inset 0 0 0 rgba(255,255,255,0); border-color: rgba(255,255,255,0.1); }
+  50% { box-shadow: 0 0 20px rgba(0,255,170,0.4), inset 0 0 15px rgba(0,255,170,0.2); border-color: rgba(0,255,170,0.5); }
+  100% { box-shadow: 0 0 10px rgba(255,255,255,0.1), inset 0 0 0 rgba(255,255,255,0); border-color: rgba(255,255,255,0.1); }
+}
+
+.vibe-match--scanning .vibe-match__grid {
+  opacity: 0.5;
+}
+
+.vibe-btn--active {
+  animation: colorScan 1.5s infinite;
+}
+
+.vibe-match__title span {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 0.5rem;
 }
