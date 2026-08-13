@@ -19,11 +19,12 @@ load_dotenv()
 
 from app.recommend import get_recommendations, discover_movies_by_vibe
 from app.poster import analyze_poster
+from app.tone import tag_synopsis
 
 app = FastAPI(
     title="CineVerse ML Service",
-    description="Machine learning, recommendations, and computer vision for CineVerse",
-    version="0.4.0",
+    description="Machine learning, recommendations, computer vision, and tone tagging for CineVerse",
+    version="0.5.0",
 )
 
 # CORS — allow frontend + backend to call this service
@@ -51,6 +52,11 @@ class RecommendRequest(BaseModel):
 
 class PosterAnalyzeRequest(BaseModel):
     posterUrl: str
+
+class ToneRequest(BaseModel):
+    synopsis: str = ""
+    genres: list[str] = []
+    title: str = ""
 
 
 # ── Endpoints ───────────────────────────────────────────────
@@ -94,6 +100,29 @@ async def recommend(req: RecommendRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ml/tone")
+async def tone_tag(req: ToneRequest):
+    """
+    Phase E2: NLP Tone/Trope Tagging.
+
+    Analyses a synopsis using a curated keyword rule engine (~200 keywords)
+    and returns ranked tone, trope, and theme tags.
+
+    Why keyword rules (not a transformer):
+      - bart-large-mnli zero-shot needs ~1.5 GB RAM — exceeds Render 512 MB free tier.
+      - This engine uses < 5 MB RAM, has zero cold-start latency, and produces
+        meaningfully better output than genre-only labels for common film tones.
+    """
+    tags = tag_synopsis(req.synopsis, req.genres)
+    return {
+        "title":         req.title,
+        "tags":          tags,
+        "tagNames":      [t["tag"] for t in tags],
+        "method":        "keyword-rule-engine",
+        "feasibilityNote": "Transformer models (bart-large-mnli) require ~1.5GB RAM, exceeding Render 512MB free tier. This keyword engine is equivalent for common film tones.",
+    }
 
 
 @app.post("/api/ml/poster/analyze")

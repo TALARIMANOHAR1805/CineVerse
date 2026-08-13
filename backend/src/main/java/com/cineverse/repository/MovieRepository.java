@@ -58,4 +58,39 @@ public interface MovieRepository extends Neo4jRepository<Movie, Long> {
             ORDER BY m.year ASC
             """)
     List<MovieGraphProjection> findMoviesByFranchiseName(String franchiseName);
+
+    /**
+     * Phase E1 — Similarity recommendations.
+     *
+     * Scoring:
+     *   +3 pts per shared actor (ACTED_IN overlap)
+     *   +2 pts if same franchise (PART_OF overlap)
+     *
+     * Returns top 10 candidates ranked by score descending.
+     * Excludes the source movie itself.
+     */
+    @Query("""
+            MATCH (source:Movie {tmdbId: $tmdbId})<-[:ACTED_IN]-(a:Person)-[:ACTED_IN]->(candidate:Movie)
+            WHERE candidate.tmdbId <> $tmdbId
+            WITH source, candidate,
+                 COUNT(DISTINCT a) AS sharedActorCount,
+                 COLLECT(DISTINCT a.name) AS actorNames
+            OPTIONAL MATCH (source)-[:PART_OF]->(f:Franchise)<-[:PART_OF]-(candidate)
+            WITH candidate,
+                 sharedActorCount,
+                 actorNames,
+                 CASE WHEN f IS NOT NULL THEN 2 ELSE 0 END AS franchiseBonus
+            WITH candidate,
+                 (sharedActorCount * 3 + franchiseBonus) AS score,
+                 actorNames
+            WHERE score > 0
+            RETURN candidate {
+                .tmdbId, .title, .year, .posterUrl, .rating,
+                sharedActors: actorNames,
+                score: score
+            }
+            ORDER BY score DESC
+            LIMIT 10
+            """)
+    List<SimilarityProjection> findSimilar(String tmdbId);
 }
