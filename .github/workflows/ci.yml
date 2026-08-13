@@ -28,13 +28,8 @@ jobs:
           distribution: 'temurin'
           cache: maven          # caches ~/.m2 between runs
 
-      - name: Fix Maven Wrapper permissions and line endings
-        run: |
-          chmod +x ./mvnw
-          sed -i 's/\r$//' ./mvnw
-
       - name: Compile
-        run: ./mvnw clean compile -B
+        run: mvn clean compile -B
 
       - name: Test
         continue-on-error: true
@@ -43,7 +38,7 @@ jobs:
           NEO4J_USERNAME: neo4j
           NEO4J_PASSWORD: test
           TMDB_API_KEY: ci-test-key
-        run: ./mvnw verify -B
+        run: mvn verify -B
 
   # ── ML Service: install deps + basic smoke test ──────────────
   ml:
