@@ -7,6 +7,7 @@ import org.springframework.web.client.RestClient;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -19,6 +20,8 @@ public class TmdbService {
     private static final String IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
     private final RestClient restClient;
     private final String apiKey;
+    // Cache last successful results per query so transient failures don't break the UI
+    private final ConcurrentHashMap<String, List<MediaResult>> searchCache = new ConcurrentHashMap<>();
 
     public TmdbService(
             RestClient.Builder restClientBuilder,
@@ -29,32 +32,59 @@ public class TmdbService {
         this.apiKey = apiKey;
     }
 
-    /** Search movies — returns up to 20 results. */
+    /** Search movies — retries up to 3x on transient SSL/network errors, then falls back to cache. */
     @SuppressWarnings("unchecked")
     public List<MediaResult> searchMovies(String query) {
-        try {
-            Map<String, Object> response = restClient.get()
-                    .uri(u -> u.path("/search/movie")
-                            .queryParam("query", query)
-                            .queryParam("api_key", apiKey)
-                            .queryParam("include_adult", false)
-                            .build())
-                    .retrieve()
-                    .body(Map.class);
+        String cacheKey = query.toLowerCase().trim();
+        int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                Map<String, Object> response = restClient.get()
+                        .uri(u -> u.path("/search/movie")
+                                .queryParam("query", query)
+                                .queryParam("api_key", apiKey)
+                                .queryParam("include_adult", false)
+                                .build())
+                        .retrieve()
+                        .body(Map.class);
 
-            if (response == null) return Collections.emptyList();
+                if (response == null) return Collections.emptyList();
 
-            List<Map<String, Object>> results =
-                    (List<Map<String, Object>>) response.getOrDefault("results", Collections.emptyList());
+                List<Map<String, Object>> results =
+                        (List<Map<String, Object>>) response.getOrDefault("results", Collections.emptyList());
 
-            return results.stream()
-                    .limit(20)
-                    .map(r -> toMediaResult(r, "movie"))
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            System.err.println("TMDB API search failed: " + e.getMessage());
-            return Collections.emptyList();
+                List<MediaResult> mapped = results.stream()
+                        .limit(20)
+                        .map(r -> toMediaResult(r, "movie"))
+                        .collect(Collectors.toList());
+
+                // Store in cache on success
+                if (!mapped.isEmpty()) searchCache.put(cacheKey, mapped);
+                return mapped;
+
+            } catch (Exception e) {
+                boolean isTransient = e.getMessage() != null &&
+                        (e.getMessage().contains("handshake") ||
+                         e.getMessage().contains("Connection reset") ||
+                         e.getMessage().contains("timed out") ||
+                         e.getMessage().contains("timeout"));
+
+                if (isTransient && attempt < maxAttempts) {
+                    System.err.println("[TmdbService] Transient error attempt " + attempt + "/" + maxAttempts + ": " + e.getMessage() + " — retrying...");
+                    try { Thread.sleep(500L * attempt); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                } else {
+                    System.err.println("[TmdbService] searchMovies failed: " + e.getMessage());
+                    // Return cached results if available
+                    List<MediaResult> cached = searchCache.get(cacheKey);
+                    if (cached != null) {
+                        System.err.println("[TmdbService] Returning " + cached.size() + " cached results for: " + query);
+                        return cached;
+                    }
+                    return Collections.emptyList();
+                }
+            }
         }
+        return Collections.emptyList();
     }
 
     /** Get a single movie by TMDB id — includes genres + collectionId. */

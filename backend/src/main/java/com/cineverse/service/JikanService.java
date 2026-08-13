@@ -1,10 +1,10 @@
 package com.cineverse.service;
 
 import org.springframework.stereotype.Service;
-
 import org.springframework.web.client.RestClient;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -16,14 +16,17 @@ public class JikanService {
 
     private static final String BASE_URL = "https://api.jikan.moe/v4";
     private final RestClient restClient;
+    // Cache last successful search results to survive Jikan/MAL outages
+    private final ConcurrentHashMap<String, List<TmdbService.MediaResult>> searchCache = new ConcurrentHashMap<>();
 
     public JikanService(RestClient.Builder builder) {
         this.restClient = builder.baseUrl(BASE_URL).build();
     }
 
-    /** Search anime by title — returns up to 20 results. */
+    /** Search anime by title — returns up to 20 results. Falls back to cache if Jikan/MAL is down. */
     @SuppressWarnings("unchecked")
     public List<TmdbService.MediaResult> searchAnime(String query) {
+        String cacheKey = query.toLowerCase().trim();
         try {
             Map<String, Object> response = restClient.get()
                     .uri(u -> u.path("/anime")
@@ -39,12 +42,22 @@ public class JikanService {
             List<Map<String, Object>> data =
                     (List<Map<String, Object>>) response.getOrDefault("data", Collections.emptyList());
 
-            return data.stream()
+            List<TmdbService.MediaResult> results = data.stream()
                     .map(this::toMediaResult)
                     .collect(Collectors.toList());
+
+            // Cache on success
+            if (!results.isEmpty()) searchCache.put(cacheKey, results);
+            return results;
+
         } catch (Exception e) {
-            // If Jikan API is down or times out, return empty list instead of crashing the whole search
-            System.err.println("Jikan API search failed: " + e.getMessage());
+            System.err.println("[JikanService] searchAnime failed: " + e.getMessage());
+            // Serve stale cache if available — better than empty when MAL is down
+            List<TmdbService.MediaResult> cached = searchCache.get(cacheKey);
+            if (cached != null) {
+                System.err.println("[JikanService] Serving " + cached.size() + " cached anime results for: " + query);
+                return cached;
+            }
             return Collections.emptyList();
         }
     }
