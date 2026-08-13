@@ -26,32 +26,38 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) throws Exception {
-        if (movieRepository.count() == 0) {
-            System.out.println("Seeding dummy data into Neo4j...");
+    public void run(String... args) {
+        try {
+            if (movieRepository.count() == 0) {
+                System.out.println("[DataSeeder] Seeding dummy data into Neo4j...");
 
-            // Create Franchise
-            Franchise mcu = new Franchise("Marvel Cinematic Universe");
-            franchiseRepository.save(mcu);
+                // Create Franchise
+                Franchise mcu = new Franchise("Marvel Cinematic Universe");
+                franchiseRepository.save(mcu);
 
-            // Create People
-            Person rdn = new Person("Robert Downey Jr.");
-            Person ce = new Person("Chris Evans");
-            personRepository.saveAll(List.of(rdn, ce));
+                // Create People
+                Person rdn = new Person("Robert Downey Jr.");
+                Person ce = new Person("Chris Evans");
+                personRepository.saveAll(List.of(rdn, ce));
 
-            // Create Movies
-            Movie ironMan = new Movie("Iron Man", LocalDate.of(2008, 5, 2));
-            ironMan.setFranchise(mcu);
-            ironMan.addCastMember(rdn, "Tony Stark");
+                // Create Movies
+                Movie ironMan = new Movie("Iron Man", LocalDate.of(2008, 5, 2));
+                ironMan.setFranchise(mcu);
+                ironMan.addCastMember(rdn, "Tony Stark");
 
-            Movie avengers = new Movie("The Avengers", LocalDate.of(2012, 5, 4));
-            avengers.setFranchise(mcu);
-            avengers.addCastMember(rdn, "Tony Stark");
-            avengers.addCastMember(ce, "Steve Rogers");
+                Movie avengers = new Movie("The Avengers", LocalDate.of(2012, 5, 4));
+                avengers.setFranchise(mcu);
+                avengers.addCastMember(rdn, "Tony Stark");
+                avengers.addCastMember(ce, "Steve Rogers");
 
-            movieRepository.saveAll(List.of(ironMan, avengers));
+                movieRepository.saveAll(List.of(ironMan, avengers));
 
-            System.out.println("Dummy data seeded successfully.");
+                System.out.println("[DataSeeder] Dummy data seeded successfully.");
+            }
+        } catch (Exception e) {
+            // Neo4j is unavailable (e.g. paused Aura free tier) — log and continue.
+            // All TMDB/Jikan search routes will still work normally.
+            System.err.println("[DataSeeder] WARNING: Neo4j unreachable at startup — graph features disabled. " + e.getMessage());
         }
     }
 }
