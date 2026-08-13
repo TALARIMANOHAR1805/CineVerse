@@ -28,6 +28,11 @@ jobs:
           distribution: 'temurin'
           cache: maven          # caches ~/.m2 between runs
 
+      - name: Fix Maven Wrapper permissions and line endings
+        run: |
+          chmod +x ./mvnw
+          sed -i 's/\r$//' ./mvnw
+
       - name: Compile
         run: ./mvnw clean compile -B
 
