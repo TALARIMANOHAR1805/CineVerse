@@ -1,0 +1,64 @@
+name: CineVerse PR Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-lint:
+    name: PR Title & Branch Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate PR title follows Conventional Commits
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "Checking PR title: $PR_TITLE"
+          if echo "$PR_TITLE" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build)(\(.+\))?: .{3,}"; then
+            echo "✅ PR title follows Conventional Commits format"
+          else
+            echo "❌ PR title does NOT follow Conventional Commits format"
+            echo "   Expected: feat(scope): description  OR  fix: description"
+            echo "   Got: $PR_TITLE"
+            exit 1
+          fi
+
+  label-size:
+    name: Auto Label PR Size
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Count changed lines
+        id: diff
+        run: |
+          LINES=$(git diff --stat origin/main...HEAD | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
+          echo "lines=$LINES" >> $GITHUB_OUTPUT
+          echo "Changed lines: $LINES"
+
+      - name: Add size label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const lines = parseInt('${{ steps.diff.outputs.lines }}') || 0;
+            let label = 'size/XS';
+            if (lines > 500) label = 'size/XL';
+            else if (lines > 200) label = 'size/L';
+            else if (lines > 50)  label = 'size/M';
+            else if (lines > 10)  label = 'size/S';
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: [label]
+            });
+            console.log(`Applied label: ${label}`);
