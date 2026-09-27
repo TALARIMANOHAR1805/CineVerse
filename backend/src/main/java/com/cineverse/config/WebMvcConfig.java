@@ -10,8 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * WebMvcConfig — Registers CORS mappings and HTTP interceptors.
  *
- * CORS is configured via the CORS_ALLOWED_ORIGINS environment variable
- * so it can be overridden per environment without code changes.
+ * CORS origins configured via CORS_ALLOWED_ORIGINS env variable.
  *
  * Improved by: Koushik-31368
  */
