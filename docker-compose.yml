@@ -1,51 +1,62 @@
-# CineVerse — Docker Compose (local dev)
-# Starts all three services with: docker-compose up
-#
-# Each service can also be run independently — see README.md
-
 services:
 
-  # ── Spring Boot Backend ─────────────────────────────────────
+  # ── Spring Boot Backend ───────────────────────────────────────
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cineverse-backend
     ports:
-      - "8080:8080"          # host:container
+      - "8080:8080"
     env_file:
-      - ./backend/.env       # loaded from gitignored .env file
+      - ./backend/.env
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      ml:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    # ml service could depend on backend in Phase 3+ but not yet
+      start_period: 60s
+    restart: unless-stopped
     networks:
       - cineverse-net
 
-  # ── FastAPI ML Service ──────────────────────────────────────
+  # ── FastAPI ML Service ────────────────────────────────────────
   ml:
-    build: ./ml
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    container_name: cineverse-ml
     ports:
       - "8001:8001"
     env_file:
       - ./ml/.env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 20s
+      timeout: 8s
       retries: 3
+      start_period: 30s
+    restart: unless-stopped
     networks:
       - cineverse-net
 
-  # ── React Frontend (production build via nginx) ─────────────
-  # NOTE: For active development, run `npm run dev` directly instead.
-  # This Docker target is for integration testing / Render-like previews.
+  # ── Vite + React Frontend (dev only) ─────────────────────────
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cineverse-frontend
     ports:
-      - "3000:80"            # nginx inside container listens on 80
+      - "5173:80"
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
     networks:
       - cineverse-net
 

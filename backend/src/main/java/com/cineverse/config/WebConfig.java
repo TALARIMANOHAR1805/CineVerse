@@ -1,32 +1,45 @@
 package com.cineverse.config;
 
+import com.cineverse.interceptor.RequestLoggingInterceptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * WebConfig — Global CORS configuration.
+ * WebMvcConfig — Registers CORS mappings and HTTP interceptors.
  *
- * Allows the Vercel-hosted frontend to call this API.
- * CORS_ALLOWED_ORIGINS is set via environment variable so the
- * allowed origin is never hard-coded in committed files.
+ * CORS is configured via the CORS_ALLOWED_ORIGINS environment variable
+ * so it can be overridden per environment without code changes.
  *
- * Local dev fallback: http://localhost:5173 (Vite default port).
+ * Improved by: Koushik-31368
  */
 @Configuration
-public class WebConfig implements WebMvcConfigurer {
+public class WebMvcConfig implements WebMvcConfigurer {
 
-    @Value("${cors.allowed-origins:http://localhost:5173}")
-    private String allowedOrigins;
+    @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
+    private String[] allowedOrigins;
+
+    private final RequestLoggingInterceptor requestLoggingInterceptor;
+
+    public WebMvcConfig(RequestLoggingInterceptor requestLoggingInterceptor) {
+        this.requestLoggingInterceptor = requestLoggingInterceptor;
+    }
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOriginPatterns(allowedOrigins, "https://*.vercel.app")
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .allowedOrigins(allowedOrigins)
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
                 .maxAge(3600);
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(requestLoggingInterceptor)
+                .addPathPatterns("/api/**");
     }
 }
