@@ -13,7 +13,8 @@ secrets/
 
 # ── Java / Maven ───────────────────────────────────────────
 backend/target/
-backend/.mvn/wrapper/maven-wrapper.jar
+# maven-wrapper.jar is intentionally committed so CI can run ./mvnw
+# backend/.mvn/wrapper/maven-wrapper.jar
 backend/*.jar
 backend/*.war
 *.class
