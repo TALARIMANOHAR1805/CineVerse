@@ -1,84 +1,58 @@
-import { useRouteError, Link } from 'react-router-dom';
-
 /**
- * NotFound component - Renders a styled 404 error page.
- * Displayed when a user navigates to an unknown route.
+ * NotFound.jsx v2 — Styled 404 page for CineVerse.
+ * Shows animated 404, a helpful message, and a back-to-home button.
+ * Improved by: Koushik-31368
  */
-export default function NotFound() {
-  const error = useRouteError();
-
+export default function NotFound({ onHome }) {
   return (
     <div style={{
       minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)',
-      color: '#fff',
-      textAlign: 'center',
-      padding: '2rem',
-      fontFamily: "'Inter', sans-serif",
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      textAlign: 'center', padding: '2rem',
+      background: 'var(--bg)',
+      gap: '1.5rem',
+      animation: 'fadeUp 0.6s ease',
     }}>
+      {/* Animated 404 */}
       <div style={{
-        fontSize: '8rem',
-        fontWeight: '900',
-        background: 'linear-gradient(90deg, #f72585, #7209b7, #3a0ca3)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
+        fontSize: 'clamp(5rem, 20vw, 10rem)',
+        fontWeight: 800,
+        background: 'linear-gradient(135deg, #fff 30%, var(--accent) 75%, var(--accent-2))',
+        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
         lineHeight: 1,
-        marginBottom: '1rem',
-      }}>
-        404
+        letterSpacing: '-0.04em',
+      }}>404</div>
+
+      <div>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+          Page not found
+        </h1>
+        <p style={{ color: 'var(--text-2)', fontSize: '0.95rem', maxWidth: 380, lineHeight: 1.7 }}>
+          The page you're looking for doesn't exist. It might have been moved, deleted, or never existed.
+        </p>
       </div>
 
-      <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎬</div>
-
-      <h1 style={{
-        fontSize: '1.8rem',
-        fontWeight: '700',
-        marginBottom: '0.75rem',
-        color: '#f0f0f0',
-      }}>
-        Scene Not Found
-      </h1>
-
-      <p style={{
-        fontSize: '1rem',
-        color: '#a0a0c0',
-        maxWidth: '400px',
-        marginBottom: '2rem',
-        lineHeight: 1.6,
-      }}>
-        {error?.statusText || error?.message ||
-          "Looks like this page got lost in the multiverse. The reel you're looking for doesn't exist."}
-      </p>
-
-      <Link
-        to="/"
+      <button
+        onClick={onHome}
         style={{
-          display: 'inline-block',
-          padding: '0.75rem 2rem',
-          background: 'linear-gradient(90deg, #f72585, #7209b7)',
-          color: '#fff',
-          borderRadius: '50px',
-          textDecoration: 'none',
-          fontWeight: '600',
-          fontSize: '1rem',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-          boxShadow: '0 4px 20px rgba(247, 37, 133, 0.4)',
+          padding: '0.7rem 2rem',
+          background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+          border: 'none', borderRadius: '999px',
+          color: '#fff', fontWeight: 600, fontSize: '1rem',
+          cursor: 'pointer', fontFamily: 'inherit',
+          transition: 'opacity 0.2s, transform 0.2s',
         }}
-        onMouseOver={e => {
-          e.currentTarget.style.transform = 'scale(1.05)';
-          e.currentTarget.style.boxShadow = '0 6px 25px rgba(247, 37, 133, 0.6)';
-        }}
-        onMouseOut={e => {
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.boxShadow = '0 4px 20px rgba(247, 37, 133, 0.4)';
-        }}
+        onMouseOver={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'scale(1.03)'; }}
+        onMouseOut={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }}
       >
-        ← Back to Home
-      </Link>
+        🎬 Back to CineVerse
+      </button>
+
+      <p style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>
+        Or press <kbd style={{ padding: '0.1rem 0.35rem', border: '1px solid var(--border)', borderRadius: 4 }}>←</kbd> to go back
+      </p>
     </div>
   );
 }

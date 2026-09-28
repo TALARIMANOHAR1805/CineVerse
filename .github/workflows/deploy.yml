@@ -1,0 +1,56 @@
+name: Deploy — CineVerse
+
+# Auto-deploy to Render (backend + ML) on push to main
+on:
+  push:
+    branches: [main]
+
+jobs:
+
+  # ── Trigger Render Backend Deploy ─────────────────────────
+  deploy-backend:
+    name: Deploy Backend to Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render backend deploy hook
+        run: |
+          if [ -n "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}" ]; then
+            curl -X POST "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}"
+            echo "Backend deploy triggered ✓"
+          else
+            echo "RENDER_BACKEND_DEPLOY_HOOK not set — skipping"
+          fi
+
+  # ── Trigger Render ML Deploy ────────────────────────────────
+  deploy-ml:
+    name: Deploy ML Service to Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render ML deploy hook
+        run: |
+          if [ -n "${{ secrets.RENDER_ML_DEPLOY_HOOK }}" ]; then
+            curl -X POST "${{ secrets.RENDER_ML_DEPLOY_HOOK }}"
+            echo "ML deploy triggered ✓"
+          else
+            echo "RENDER_ML_DEPLOY_HOOK not set — skipping"
+          fi
+
+  # ── Post-deploy Health Check ────────────────────────────────
+  health-check:
+    name: Post-deploy Health Check
+    runs-on: ubuntu-latest
+    needs: [deploy-backend]
+    steps:
+      - name: Wait for backend to start (60s)
+        run: sleep 60
+
+      - name: Check backend health
+        run: |
+          BACKEND_URL="${{ secrets.BACKEND_URL || 'https://cineverse-backend.onrender.com' }}"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${BACKEND_URL}/api/health" || echo "000")
+          echo "Backend health status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Backend is healthy"
+          else
+            echo "⚠️ Backend returned $STATUS — may still be starting up"
+          fi

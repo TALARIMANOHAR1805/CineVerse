@@ -1,54 +1,54 @@
-# Changelog 📝
-
-All notable changes to CineVerse will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
----
-
 ## [Unreleased]
 
-### Added
-- `CONTRIBUTING.md` — contributor guidelines and setup instructions
-- `SECURITY.md` — security policy and vulnerability reporting
-- `CHANGELOG.md` — this file, for tracking version history
-- `.env.example` files for all services (backend, frontend, ml)
-- GitHub Actions CI/CD workflow
-- `LoadingSpinner` React component for async state feedback
-- `ErrorBoundary` React component for graceful error handling
-- `NotFound` (404) React page
-- `GlobalExceptionHandler` in Spring Boot backend
-- Health check endpoint at `/api/health`
-- Input validation annotations on backend DTOs
-- API rate limiting configuration
-- Structured logging with request/response interceptor
-- `/health` endpoint in FastAPI ML service
-- Improved error responses in ML service
-- Docstrings added to all ML service functions
-- Docker healthcheck configurations in `docker-compose.yml`
+### Added (Day 3 — 2026-09-28)
+- **Frontend:** Full App.jsx v3 overhaul — integrated WatchlistContext, Toast, Skeleton, Footer, Navbar with live watchlist count badge
+- **Frontend:** Bookmark (+ Save) button on every MediaCard and in the detail panel header
+- **Frontend:** Skeleton loading grid (`<SkeletonGrid>`) replaces plain spinner during search
+- **Frontend:** Escape key closes the detail panel
+- **Frontend:** Retry button shown on search error state
+- **Frontend:** Keyboard `/` shortcut focuses the search input from anywhere
+- **Frontend:** Clear (✕) button inside search input to reset query
+- **Frontend:** Lazy timeline loading — only fetched when Timeline tab is opened
+- **Frontend:** Poster dominant colour displayed in the Details tab
+- **App.css v3:** Complete CSS rewrite — card bookmark button, mobile responsive, graph/vibe sections, panel animations
+- **Backend:** `CacheController` — admin endpoints `/api/admin/cache/stats` and `/api/admin/cache/clear`
+- **Backend:** `SearchResponseDTO` — strongly-typed search response model
+- **ML:** `schemas.py` — Pydantic models for `PosterAnalyzeRequest/Response` and `VibeDiscoverResponse`
+- **ML:** `cache.py` — thread-safe TTL `MLCache` singleton with eviction, clear, and size
+- **ML:** `logging_config.py` — centralised structured logging setup
+- **ML:** `test_cache_and_schemas.py` — 11 new unit tests for cache TTL and schema validation
+- **Docs:** `FAQ.md` — answers to 8 common user questions
 
-### Changed
-- Improved `README.md` with badges, setup guide, and API docs
-- Refactored frontend components for better code reuse
+### Fixed (Day 2 — 2026-09-27)
+- **CI:** Replace `./mvnw` with system `mvn` — fixes `ClassNotFoundException: MavenWrapperMain`
+- **Backend:** Rename `WebConfig.java` → `WebMvcConfig.java` to match public class name
+- **Backend:** Add `spring-boot-starter-validation` to `pom.xml` for `jakarta.validation` support
+- **gitignore:** Un-ignore `maven-wrapper.jar` (commented out) to allow CI to use wrapper
 
-### Fixed
-- Edge case null handling in graph traversal
-- Spoiler shield endpoint input validation
+### Added (Day 2 — 2026-09-27)
+- **CI:** Fixed `ci.yml` — use `setup-java@v4`, `chmod +x mvnw`, `continue-on-error` for DB-dependent tests
+- **Frontend:** `index.css` v2 — skeleton shimmer, toast, scrollbar, utility classes, animations
+- **Frontend:** `Toast.jsx` — event-bus toast notification system
+- **Frontend:** `Skeleton.jsx` — SkeletonCard / SkeletonGrid / SkeletonDetail
+- **Frontend:** `SearchBar.jsx` — type filter tabs, keyboard shortcut, clear button, loading spinner
+- **Frontend:** `Navbar.jsx` — live API health dot, scroll-aware blur, GitHub link
+- **Frontend:** `Footer.jsx` — tech stack chips, external links
+- **Frontend:** `WatchlistContext.jsx` — global React Context + localStorage watchlist
+- **Frontend:** `WatchlistPage.jsx` — saved items grid with remove/clear
+- **Backend:** `WebMvcConfig.java` — CORS + interceptor registration via `WebMvcConfigurer`
+- **Backend:** Enhanced `HealthController` — `/api/health/info` with uptime, memory, JVM version
+- **Backend:** `CacheService.java` — thread-safe TTL in-memory cache
+- **Backend:** `ScheduledTaskService.java` — cache cleanup and heartbeat jobs
+- **ML:** `middleware.py` — ASGI request logging middleware
+- **ML:** `tests/test_ml.py` — 12 pytest unit tests
+- **Docker:** `docker-compose.yml` — healthchecks, restart policies, shared network
 
----
-
-## [1.0.0] - 2026-09-01
-
-### Added
-- Initial full-stack implementation
-- Search for Movies and Anime (TMDB + Jikan APIs)
-- Before You Watch — prequel/sequel timeline placement
-- Six-Degrees Pathfinding using Neo4j `shortestPath()`
-- Spoiler-Shield Toggle for anime episode progress
-- Reverse-Recommendation Watch Paths
-- Vibe Match with poster color analysis (FastAPI + ML)
-- Docker Compose setup for all services
-- Render.yaml deployment configuration
-- Spring Boot load tests (avg ~0.023s per request)
-- Neo4j graph query performance (avg ~0.009s per query)
+### Added (Day 1 — 2026-09-25)
+- **Docs:** Rewrote `README.md` with badges, quick-start, API reference, benchmarks
+- **Docs:** Added `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`
+- **CI/CD:** Added `ci.yml` workflow (Backend / ML / Frontend) and `pr-checks.yml`
+- **Backend:** `GlobalExceptionHandler`, `ResourceNotFoundException`, `ExternalApiException`
+- **Backend:** `SearchRequestDTO`, `ApiResponse<T>` wrapper
+- **Backend:** `RequestLoggingInterceptor`
+- **Frontend:** `NotFound.jsx`, `ErrorBoundary.jsx`, `LoadingSpinner.jsx`, `hooks.js`
+- **ML:** Health endpoints `/health`, `/health/ready`; `config.py`, `exceptions.py`, `utils.py`
