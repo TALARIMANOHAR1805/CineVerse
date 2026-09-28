@@ -1,129 +1,109 @@
-import { useState, useCallback } from 'react';
-
 /**
- * useDebounce hook - Returns a debounced version of the provided value.
- *
- * @param {any} value - The value to debounce
- * @param {number} delay - Delay in milliseconds (default: 400)
- * @returns {any} - The debounced value
+ * useSearch — Custom React hook for CineVerse search with debounce.
  *
  * Usage:
- *   const debouncedQuery = useDebounce(searchQuery, 400);
+ *   const { results, loading, error, search, reset } = useSearch();
+ *   search('inception', 'movie');
+ *
+ * Added by: Koushik-31368
  */
-import { useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
-export function useDebounce(value, delay = 400) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
+const API_BASE = (() => {
+  let base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+  if (!base.endsWith('/api')) base = `${base}/api`;
+  return base;
+})();
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
-/**
- * useLocalStorage hook - Syncs state with localStorage automatically.
- *
- * @param {string} key - The localStorage key
- * @param {any} initialValue - Default value if key doesn't exist
- * @returns {[any, Function]} - [storedValue, setValue]
- *
- * Usage:
- *   const [theme, setTheme] = useLocalStorage('cv-theme', 'dark');
- */
-export function useLocalStorage(key, initialValue) {
-  const [storedValue, setStoredValue] = useState(() => {
-    try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch {
-      return initialValue;
-    }
-  });
-
-  const setValue = useCallback(
-    (value) => {
-      try {
-        const valueToStore =
-          value instanceof Function ? value(storedValue) : value;
-        setStoredValue(valueToStore);
-        localStorage.setItem(key, JSON.stringify(valueToStore));
-      } catch (error) {
-        console.error(`useLocalStorage: failed to set key "${key}"`, error);
-      }
-    },
-    [key, storedValue]
-  );
-
-  return [storedValue, setValue];
-}
-
-/**
- * useCopyToClipboard hook - Copies text to clipboard and tracks copied state.
- *
- * @returns {{ copied: boolean, copyToClipboard: Function }}
- *
- * Usage:
- *   const { copied, copyToClipboard } = useCopyToClipboard();
- *   <button onClick={() => copyToClipboard(text)}>{copied ? 'Copied!' : 'Copy'}</button>
- */
-export function useCopyToClipboard(resetDelay = 2000) {
-  const [copied, setCopied] = useState(false);
-  const timerRef = useRef(null);
-
-  const copyToClipboard = useCallback(async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setCopied(false), resetDelay);
-    } catch (err) {
-      console.error('useCopyToClipboard: failed to copy', err);
-    }
-  }, [resetDelay]);
-
-  return { copied, copyToClipboard };
-}
-
-/**
- * useFetch hook - Generic data fetching hook with loading/error states.
- *
- * @param {string|null} url - URL to fetch from (set null to skip)
- * @returns {{ data, loading, error, refetch }}
- *
- * Usage:
- *   const { data, loading, error } = useFetch('/api/search?q=inception');
- */
-export function useFetch(url) {
-  const [state, setState] = useState({ data: null, loading: false, error: null });
+export function useSearch() {
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState(null);
   const abortRef = useRef(null);
 
-  const fetchData = useCallback(async (fetchUrl) => {
-    if (!fetchUrl) return;
-    abortRef.current?.abort();
+  const search = useCallback(async (query, type = 'all') => {
+    const q = query?.trim();
+    if (!q || type === 'vibe') return;
+
+    // Abort previous in-flight request
+    if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
 
-    setState({ data: null, loading: true, error: null });
+    setLoading(true);
+    setError(null);
+    setResults(null);
 
     try {
-      const res = await fetch(fetchUrl, { signal: abortRef.current.signal });
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      const data = await res.json();
-      setState({ data, loading: false, error: null });
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        setState({ data: null, loading: false, error: err.message });
-      }
+      const url = `${API_BASE}/search?q=${encodeURIComponent(q)}&type=${type}`;
+      const res = await fetch(url, { signal: abortRef.current.signal });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const json = await res.json();
+      // Unwrap ApiResponse<T> wrapper from backend
+      setResults(json.data ?? json);
+    } catch (e) {
+      if (e.name === 'AbortError') return; // Ignore cancelled requests
+      setError(e.message || 'Search failed. Is the backend running?');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchData(url);
-    return () => abortRef.current?.abort();
-  }, [url, fetchData]);
+  const reset = useCallback(() => {
+    if (abortRef.current) abortRef.current.abort();
+    setResults(null);
+    setError(null);
+    setLoading(false);
+  }, []);
 
-  const refetch = useCallback(() => fetchData(url), [url, fetchData]);
-  return { ...state, refetch };
+  return { results, loading, error, search, reset };
+}
+
+/**
+ * useDebounce — Returns a debounced version of the value.
+ * @param {*}      value        Value to debounce
+ * @param {number} delayMs      Delay in ms (default 350)
+ */
+export function useDebounce(value, delayMs = 350) {
+  const [debounced, setDebounced] = useState(value);
+  const timerRef = useRef(null);
+
+  if (value !== debounced) {
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setDebounced(value), delayMs);
+  }
+
+  return debounced;
+}
+
+/**
+ * useLocalStorage — Sync state with localStorage.
+ * @param {string} key          Storage key
+ * @param {*}      initialValue Fallback if key not found
+ */
+export function useLocalStorage(key, initialValue) {
+  const [stored, setStored] = useState(() => {
+    try {
+      const item = localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch { return initialValue; }
+  });
+
+  const setValue = useCallback((value) => {
+    try {
+      const val = typeof value === 'function' ? value(stored) : value;
+      setStored(val);
+      localStorage.setItem(key, JSON.stringify(val));
+    } catch { /* Storage unavailable */ }
+  }, [key, stored]);
+
+  return [stored, setValue];
+}
+
+/**
+ * useScrollLock — Locks body scroll (useful for modals/panels).
+ */
+export function useScrollLock(active) {
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = active ? 'hidden' : '';
+  }
 }
