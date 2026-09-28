@@ -3,51 +3,50 @@ package com.cineverse.dto;
 import java.time.Instant;
 
 /**
- * ApiResponse — Generic wrapper for all API responses.
- * Provides a consistent JSON envelope: { success, data, message, timestamp }
+ * ApiResponse<T> — Unified response wrapper for all CineVerse API endpoints.
  *
- * Usage:
- *   return ResponseEntity.ok(ApiResponse.success(data));
- *   return ResponseEntity.badRequest().body(ApiResponse.error("Not found"));
+ * Ensures consistent JSON shape:
+ * {
+ *   "success": true,
+ *   "message": "OK",
+ *   "data": {...},
+ *   "timestamp": "2026-09-28T14:00:00Z"
+ * }
  *
  * Added by: Koushik-31368
  */
 public class ApiResponse<T> {
 
     private final boolean success;
-    private final T data;
-    private final String message;
-    private final String timestamp;
+    private final String  message;
+    private final T       data;
+    private final String  timestamp;
 
-    private ApiResponse(boolean success, T data, String message) {
+    private ApiResponse(boolean success, String message, T data) {
         this.success   = success;
-        this.data      = data;
         this.message   = message;
+        this.data      = data;
         this.timestamp = Instant.now().toString();
     }
 
-    // ------------------------------------------------------------------ //
-    //  Factory methods
-    // ------------------------------------------------------------------ //
+    // ── Factory methods ──────────────────────────────────────
 
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(true, data, "OK");
+        return new ApiResponse<>(true, "OK", data);
     }
 
     public static <T> ApiResponse<T> success(T data, String message) {
-        return new ApiResponse<>(true, data, message);
+        return new ApiResponse<>(true, message, data);
     }
 
     public static <T> ApiResponse<T> error(String message) {
-        return new ApiResponse<>(false, null, message);
+        return new ApiResponse<>(false, message, null);
     }
 
-    // ------------------------------------------------------------------ //
-    //  Getters (needed for Jackson serialization)
-    // ------------------------------------------------------------------ //
+    // ── Getters ──────────────────────────────────────────────
 
-    public boolean isSuccess()   { return success;   }
-    public T       getData()     { return data;       }
-    public String  getMessage()  { return message;    }
-    public String  getTimestamp(){ return timestamp;  }
+    public boolean isSuccess()  { return success;   }
+    public String  getMessage() { return message;   }
+    public T       getData()    { return data;       }
+    public String  getTimestamp() { return timestamp; }
 }
