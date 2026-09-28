@@ -1,94 +1,102 @@
 package com.cineverse.controller;
 
-import com.cineverse.service.GraphService;
-import com.cineverse.service.JikanService;
+import com.cineverse.dto.ApiResponse;
 import com.cineverse.service.TmdbService;
-import org.springframework.http.HttpStatus;
+import com.cineverse.service.JikanService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * SearchController — Phase 1 unified search API.
+ * SearchController v2 — Unified search across movies (TMDB) and anime (Jikan).
  *
- * GET /api/search?q=inception&type=all   → both movies + anime
- * GET /api/search?q=naruto&type=anime    → anime only
- * GET /api/search?q=inception&type=movie → movies only
- * GET /api/movies/{id}                   → single movie detail
- * GET /api/anime/{id}                    → single anime detail
+ * Endpoints:
+ *   GET /api/search?q={query}&type={all|movie|anime}
+ *   GET /api/search/movies?q={query}
+ *   GET /api/search/anime?q={query}
+ *
+ * Improved by: Koushik-31368
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/search")
 public class SearchController {
 
-    private final TmdbService  tmdbService;
-    private final JikanService  jikanService;
-    private final GraphService  graphService;
+    private final TmdbService tmdbService;
+    private final JikanService jikanService;
 
-    public SearchController(TmdbService tmdbService, JikanService jikanService, GraphService graphService) {
+    public SearchController(TmdbService tmdbService, JikanService jikanService) {
         this.tmdbService  = tmdbService;
         this.jikanService = jikanService;
-        this.graphService = graphService;
     }
 
-    /** Unified search — type: "all" | "movie" | "anime" */
-    @GetMapping("/search")
-    public Map<String, Object> search(
-            @RequestParam String q,
-            @RequestParam(defaultValue = "all") String type) {
-
-        List<TmdbService.MediaResult> movies = new ArrayList<>();
-        List<TmdbService.MediaResult> anime  = new ArrayList<>();
-
-        if ("all".equals(type) || "movie".equals(type)) {
-            movies = tmdbService.searchMovies(q);
+    /**
+     * Unified search — returns movies + anime depending on the type filter.
+     *
+     * @param q    The search query (required, min 1 char)
+     * @param type Filter: "all", "movie", or "anime" (default: "all")
+     */
+    @GetMapping
+    public ResponseEntity<ApiResponse<Map<String, Object>>> search(
+        @RequestParam String q,
+        @RequestParam(defaultValue = "all") String type
+    ) {
+        if (q == null || q.isBlank()) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Query parameter 'q' is required and cannot be blank"));
         }
-        if ("all".equals(type) || "anime".equals(type)) {
-            anime = jikanService.searchAnime(q);
+
+        List<TmdbService.MediaResult> movies = List.of();
+        List<JikanService.AnimeResult> anime  = List.of();
+
+        if ("all".equalsIgnoreCase(type) || "movie".equalsIgnoreCase(type)) {
+            movies = tmdbService.searchMovies(q.trim());
+        }
+        if ("all".equalsIgnoreCase(type) || "anime".equalsIgnoreCase(type)) {
+            anime = jikanService.searchAnime(q.trim());
         }
 
-        return Map.of(
-                "query",  q,
-                "type",   type,
-                "movies", movies,
-                "anime",  anime,
-                "total",  movies.size() + anime.size()
+        Map<String, Object> payload = Map.of(
+            "query",  q,
+            "type",   type,
+            "movies", movies,
+            "anime",  anime,
+            "total",  movies.size() + anime.size()
         );
+
+        return ResponseEntity.ok(ApiResponse.success(payload));
     }
 
-    /** Single movie detail by TMDB id — also triggers async graph ingest. */
-    @GetMapping("/movies/{id}")
-    public TmdbService.MediaResult movieDetail(@PathVariable int id) {
-        try {
-            TmdbService.MediaResult result = tmdbService.getMovieById(id);
-            if (result == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Movie not found: " + id);
-            graphService.ingestMovie(result);  // async — never blocks response
-            return result;
-        } catch (ResponseStatusException rse) {
-            throw rse;
-        } catch (Exception e) {
-            System.err.println("[SearchController] movieDetail error for id=" + id + ": " + e.getMessage());
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "TMDB API unavailable — try again later");
+    /**
+     * Movie-only search shortcut.
+     */
+    @GetMapping("/movies")
+    public ResponseEntity<ApiResponse<List<TmdbService.MediaResult>>> searchMovies(
+        @RequestParam String q
+    ) {
+        if (q == null || q.isBlank()) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Query parameter 'q' is required"));
         }
+        List<TmdbService.MediaResult> results = tmdbService.searchMovies(q.trim());
+        return ResponseEntity.ok(ApiResponse.success(results,
+            results.isEmpty() ? "No movies found" : results.size() + " movies found"));
     }
 
-    /** Single anime detail by MAL id */
-    @GetMapping("/anime/{id}")
-    public TmdbService.MediaResult animeDetail(@PathVariable int id) {
-        try {
-            TmdbService.MediaResult result = jikanService.getAnimeById(id);
-            if (result == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Anime not found: " + id);
-            return result;
-        } catch (ResponseStatusException rse) {
-            throw rse;
-        } catch (Exception e) {
-            System.err.println("[SearchController] animeDetail error for id=" + id + ": " + e.getMessage());
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Jikan API unavailable — try again later");
+    /**
+     * Anime-only search shortcut.
+     */
+    @GetMapping("/anime")
+    public ResponseEntity<ApiResponse<List<JikanService.AnimeResult>>> searchAnime(
+        @RequestParam String q
+    ) {
+        if (q == null || q.isBlank()) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Query parameter 'q' is required"));
         }
+        List<JikanService.AnimeResult> results = jikanService.searchAnime(q.trim());
+        return ResponseEntity.ok(ApiResponse.success(results,
+            results.isEmpty() ? "No anime found" : results.size() + " anime found"));
     }
 }
