@@ -1,24 +1,52 @@
 /**
- * App.jsx — CineVerse Phase 3
- * Search + Timeline Placement + Neo4j Graph Discovery
+ * App.jsx — CineVerse v2 (Day 3 Major Overhaul)
+ * Full watchlist, toast, skeleton, dark theme, responsive nav, footer, watchlist page
+ * Author: Koushik-31368
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import './App.css';
+import ErrorBoundary from './ErrorBoundary';
+import { SkeletonGrid } from './Skeleton';
+import { ToastContainer, showToast } from './Toast';
+import { WatchlistProvider, useWatchlist } from './WatchlistContext';
+import WatchlistPage from './WatchlistPage';
+import Footer from './Footer';
 
 let API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-if (API && !API.endsWith('/api')) {
-  API = `${API}/api`;
-}
+if (API && !API.endsWith('/api')) API = `${API}/api`;
 const ML_API = import.meta.env.VITE_ML_API_BASE_URL || 'http://localhost:8001/api/ml';
 
 /* ─────────────────────────────────────────────────────────── */
-/* Small Components                                             */
+/* Media Card                                                   */
 /* ─────────────────────────────────────────────────────────── */
-
 function MediaCard({ item, onClick }) {
+  const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const saved = isInWatchlist(item.id, item.type);
+
+  const handleBookmark = (e) => {
+    e.stopPropagation();
+    if (saved) {
+      removeFromWatchlist(item.id, item.type);
+      showToast(`Removed "${item.title}"`, 'info');
+    } else {
+      addToWatchlist(item);
+      showToast(`Saved "${item.title}" to watchlist ✓`, 'success');
+    }
+  };
+
   return (
     <div className="card" onClick={() => onClick(item)} role="button" tabIndex={0}
       onKeyDown={e => e.key === 'Enter' && onClick(item)}>
+      {/* Bookmark button */}
+      <button
+        className="card__bookmark"
+        onClick={handleBookmark}
+        aria-label={saved ? 'Remove from watchlist' : 'Add to watchlist'}
+        title={saved ? 'Remove from watchlist' : 'Save to watchlist'}
+      >
+        {saved ? '🔖' : '＋'}
+      </button>
+
       {item.posterUrl
         ? <img className="card__poster" src={item.posterUrl} alt={item.title} loading="lazy" />
         : <div className="card__poster-placeholder">{item.type === 'anime' ? '🎌' : '🎬'}</div>
@@ -35,12 +63,15 @@ function MediaCard({ item, onClick }) {
             {item.genres.slice(0, 3).map(g => <span key={g} className="genre-tag">{g}</span>)}
           </div>
         )}
-        <div className="card__timeline-hint">View timeline →</div>
+        <div className="card__timeline-hint">View details →</div>
       </div>
     </div>
   );
 }
 
+/* ─────────────────────────────────────────────────────────── */
+/* Results Section                                             */
+/* ─────────────────────────────────────────────────────────── */
 function ResultsSection({ title, icon, items, onCardClick }) {
   if (!items?.length) return null;
   return (
@@ -62,7 +93,6 @@ function ResultsSection({ title, icon, items, onCardClick }) {
 /* ─────────────────────────────────────────────────────────── */
 /* Timeline Entry                                               */
 /* ─────────────────────────────────────────────────────────── */
-
 function TimelineEntry({ entry }) {
   return (
     <div className={`tl-entry${entry.isCurrent ? ' tl-entry--current' : ''}`}>
@@ -82,19 +112,17 @@ function TimelineEntry({ entry }) {
 }
 
 /* ─────────────────────────────────────────────────────────── */
-/* Graph Connections Tab                                        */
+/* Graph Connections                                            */
 /* ─────────────────────────────────────────────────────────── */
-
 function GraphConnections({ tmdbId }) {
-  const [graph, setGraph]       = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
+  const [graph, setGraph]     = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
 
-  useState(() => {
+  useEffect(() => {
     let cancelled = false;
     async function load() {
-      setLoading(true);
-      setError(null);
+      setLoading(true); setError(null);
       try {
         const res = await fetch(`${API}/graph/related/movie/${tmdbId}`);
         if (!res.ok) throw new Error(`${res.status}`);
@@ -108,34 +136,18 @@ function GraphConnections({ tmdbId }) {
     }
     load();
     return () => { cancelled = true; };
-  });
+  }, [tmdbId]);
 
-  if (loading) return (
-    <div className="graph-state">
-      <div className="spinner" style={{ width: 32, height: 32 }} />
-      <p>Querying Neo4j graph…</p>
-    </div>
-  );
-
-  if (error) return (
-    <div className="graph-state">
-      <span style={{ fontSize: '1.5rem' }}>⚠️</span>
-      <p style={{ color: 'var(--text-2)' }}>Graph unavailable: {error}</p>
-    </div>
-  );
-
+  if (loading) return <div className="graph-state"><div className="spinner" style={{ width: 32, height: 32 }} /><p>Querying Neo4j graph…</p></div>;
+  if (error)   return <div className="graph-state"><span style={{ fontSize:'1.5rem' }}>⚠️</span><p style={{ color:'var(--text-2)' }}>Graph unavailable: {error}</p></div>;
   if (!graph?.hasGraph || !graph?.connections?.length) return (
     <div className="graph-state">
-      <span style={{ fontSize: '2rem' }}>🕸️</span>
+      <span style={{ fontSize:'2rem' }}>🕸️</span>
       <p className="graph-state__title">Graph is building</p>
-      <p className="graph-state__text">
-        The Neo4j graph self-populates as you browse movies.
-        View a few movies and check back — connections will appear here.
-      </p>
+      <p className="graph-state__text">Browse a few more movies — connections appear as the graph self-populates.</p>
     </div>
   );
 
-  // Group by actor connections vs franchise siblings
   const actorLinks    = graph.connections.filter(c => c.connectionType === 'actor');
   const franchiseLinks = graph.connections.filter(c => c.connectionType === 'franchise');
 
@@ -147,21 +159,14 @@ function GraphConnections({ tmdbId }) {
           <div className="graph-grid">
             {actorLinks.map(c => (
               <div key={c.tmdbId} className="graph-card">
-                {c.posterUrl
-                  ? <img className="graph-card__poster" src={c.posterUrl} alt={c.title} loading="lazy" />
-                  : <div className="graph-card__poster-ph">🎬</div>
-                }
+                {c.posterUrl ? <img className="graph-card__poster" src={c.posterUrl} alt={c.title} loading="lazy" /> : <div className="graph-card__poster-ph">🎬</div>}
                 <div className="graph-card__body">
                   <p className="graph-card__title">{c.title}</p>
                   <p className="graph-card__year">{c.year}</p>
                   {c.sharedActors?.length > 0 && (
                     <div className="graph-actors">
-                      {c.sharedActors.slice(0, 2).map(a => (
-                        <span key={a} className="graph-actor-chip">👤 {a}</span>
-                      ))}
-                      {c.sharedActors.length > 2 && (
-                        <span className="graph-actor-chip">+{c.sharedActors.length - 2} more</span>
-                      )}
+                      {c.sharedActors.slice(0, 2).map(a => <span key={a} className="graph-actor-chip">👤 {a}</span>)}
+                      {c.sharedActors.length > 2 && <span className="graph-actor-chip">+{c.sharedActors.length - 2} more</span>}
                     </div>
                   )}
                 </div>
@@ -170,17 +175,13 @@ function GraphConnections({ tmdbId }) {
           </div>
         </div>
       )}
-
       {franchiseLinks.length > 0 && (
         <div className="graph-section">
           <p className="graph-section__label">🎬 Same franchise in graph</p>
           <div className="graph-grid">
             {franchiseLinks.map(c => (
               <div key={c.tmdbId} className="graph-card">
-                {c.posterUrl
-                  ? <img className="graph-card__poster" src={c.posterUrl} alt={c.title} loading="lazy" />
-                  : <div className="graph-card__poster-ph">🎬</div>
-                }
+                {c.posterUrl ? <img className="graph-card__poster" src={c.posterUrl} alt={c.title} loading="lazy" /> : <div className="graph-card__poster-ph">🎬</div>}
                 <div className="graph-card__body">
                   <p className="graph-card__title">{c.title}</p>
                   <p className="graph-card__year">{c.year}</p>
@@ -196,15 +197,14 @@ function GraphConnections({ tmdbId }) {
 }
 
 /* ─────────────────────────────────────────────────────────── */
-/* ML Recommendations Tab (Phase 4)                            */
+/* ML Recommendations                                          */
 /* ─────────────────────────────────────────────────────────── */
-
 function MLRecommendations({ item }) {
-  const [recs, setRecs] = useState(null);
+  const [recs, setRecs]     = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]   = useState(null);
 
-  useState(() => {
+  useEffect(() => {
     let cancelled = false;
     async function fetchRecs() {
       setLoading(true); setError(null);
@@ -212,12 +212,7 @@ function MLRecommendations({ item }) {
         const res = await fetch(`${ML_API}/recommend`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: item.title,
-            synopsis: item.synopsis || "",
-            genres: item.genres || [],
-            limit: 8
-          })
+          body: JSON.stringify({ title: item.title, synopsis: item.synopsis || '', genres: item.genres || [], limit: 8 })
         });
         if (!res.ok) throw new Error(`${res.status}`);
         const data = await res.json();
@@ -230,27 +225,11 @@ function MLRecommendations({ item }) {
     }
     fetchRecs();
     return () => { cancelled = true; };
-  });
+  }, [item.title]);
 
-  if (loading) return (
-    <div className="graph-state">
-      <div className="spinner" style={{ width: 32, height: 32 }} />
-      <p>Consulting ML models...</p>
-    </div>
-  );
-
-  if (error) return (
-    <div className="graph-state">
-      <span style={{ fontSize: '1.5rem' }}>⚠️</span>
-      <p style={{ color: 'var(--text-2)' }}>ML Service unavailable: {error}</p>
-    </div>
-  );
-
-  if (!recs?.length) return (
-    <div className="graph-state">
-      <p className="graph-state__text">No strong ML recommendations found.</p>
-    </div>
-  );
+  if (loading) return <div className="graph-state"><div className="spinner" style={{ width:32, height:32 }} /><p>Consulting ML models...</p></div>;
+  if (error)   return <div className="graph-state"><span style={{ fontSize:'1.5rem' }}>⚠️</span><p style={{ color:'var(--text-2)' }}>ML unavailable: {error}</p></div>;
+  if (!recs?.length) return <div className="graph-state"><p className="graph-state__text">No strong ML recommendations found.</p></div>;
 
   return (
     <div className="graph-results">
@@ -259,10 +238,7 @@ function MLRecommendations({ item }) {
         <div className="graph-grid">
           {recs.map(c => (
             <div key={c.id} className="graph-card">
-              {c.posterUrl
-                ? <img className="graph-card__poster" src={c.posterUrl} alt={c.title} loading="lazy" />
-                : <div className="graph-card__poster-ph">🎬</div>
-              }
+              {c.posterUrl ? <img className="graph-card__poster" src={c.posterUrl} alt={c.title} loading="lazy" /> : <div className="graph-card__poster-ph">🎬</div>}
               <div className="graph-card__body">
                 <p className="graph-card__title">{c.title}</p>
                 <p className="graph-card__year">{c.year}</p>
@@ -277,30 +253,27 @@ function MLRecommendations({ item }) {
 }
 
 /* ─────────────────────────────────────────────────────────── */
-/* Vibe Match Component (Phase 5)                              */
+/* Vibe Match                                                   */
 /* ─────────────────────────────────────────────────────────── */
-
 function VibeMatch({ onCardClick }) {
-  const [vibe, setVibe] = useState(null);
+  const [vibe, setVibe]     = useState(null);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError]   = useState(null);
 
   const VIBES = [
-    { id: 'dark', emoji: '🌑', label: 'Bleak & Gritty' },
-    { id: 'moody', emoji: '🌧️', label: 'Moody & Atmospheric' },
-    { id: 'intense', emoji: '🔥', label: 'Intense & Heavy' },
-    { id: 'vibrant', emoji: '✨', label: 'Neon Cyberpunk' },
-    { id: 'neutral', emoji: '⚖️', label: 'Neutral & Balanced' },
-    { id: 'bright', emoji: '☀️', label: 'Cozy & Warm' },
+    { id: 'dark',      emoji: '🌑', label: 'Bleak & Gritty' },
+    { id: 'moody',     emoji: '🌧️', label: 'Moody & Atmospheric' },
+    { id: 'intense',   emoji: '🔥', label: 'Intense & Heavy' },
+    { id: 'vibrant',   emoji: '✨', label: 'Neon Cyberpunk' },
+    { id: 'neutral',   emoji: '⚖️', label: 'Neutral & Balanced' },
+    { id: 'bright',    emoji: '☀️', label: 'Cozy & Warm' },
     { id: 'energetic', emoji: '⚡', label: 'Energetic & Pop' },
   ];
 
   async function discoverVibe(v) {
-    if (vibe === v && !error) return; // already loaded
-    setVibe(v);
-    setLoading(true);
-    setError(null);
+    if (vibe === v && !error) return;
+    setVibe(v); setLoading(true); setError(null);
     try {
       const res = await fetch(`${ML_API}/discover/vibe/${v}`);
       if (!res.ok) throw new Error(`${res.status}`);
@@ -318,45 +291,17 @@ function VibeMatch({ onCardClick }) {
       <h2 className="vibe-match__title">Vibe Match <span>(Aesthetic Matcher)</span></h2>
       <div className="vibe-match__filters">
         {VIBES.map(v => (
-          <button 
-            key={v.id}
-            className={`vibe-btn ${vibe === v.id ? 'vibe-btn--active' : ''}`}
-            onClick={() => discoverVibe(v.id)}
-          >
-            <span className="vibe-btn__icon">{v.emoji}</span>
-            {v.label}
+          <button key={v.id} className={`vibe-btn ${vibe === v.id ? 'vibe-btn--active' : ''}`} onClick={() => discoverVibe(v.id)}>
+            <span className="vibe-btn__icon">{v.emoji}</span>{v.label}
           </button>
         ))}
       </div>
-      
-      {loading && (
-        <div className="state-center">
-          <div className="spinner" />
-          <p className="state-text">Analyzing trending posters...</p>
-        </div>
-      )}
-      
-      {error && !loading && (
-        <div className="state-center">
-          <span className="state-icon">⚠️</span>
-          <p className="state-title">Error</p>
-          <p className="state-text">Failed to fetch vibe: {error}</p>
-        </div>
-      )}
-      
-      {!loading && !error && vibe && movies.length === 0 && (
-        <div className="state-center">
-          <span className="state-icon">🔎</span>
-          <p className="state-title">No matches</p>
-          <p className="state-text">No trending movies match this mood right now.</p>
-        </div>
-      )}
-      
+      {loading && <div className="state-center"><div className="spinner" /><p className="state-text">Analyzing posters...</p></div>}
+      {error && !loading && <div className="state-center"><span className="state-icon">⚠️</span><p className="state-text">Failed: {error}</p></div>}
+      {!loading && !error && vibe && movies.length === 0 && <div className="state-center"><span className="state-icon">🔎</span><p className="state-title">No matches</p></div>}
       {!loading && !error && movies.length > 0 && (
         <div className="vibe-match__grid">
-          {movies.map(item => (
-            <MediaCard key={item.id} item={item} onClick={onCardClick} />
-          ))}
+          {movies.map(item => <MediaCard key={item.id} item={item} onClick={onCardClick} />)}
         </div>
       )}
     </div>
@@ -364,36 +309,33 @@ function VibeMatch({ onCardClick }) {
 }
 
 /* ─────────────────────────────────────────────────────────── */
-/* Timeline Panel (Phases 2 + 3)                               */
+/* Detail Panel                                                 */
 /* ─────────────────────────────────────────────────────────── */
-
 function TimelinePanel({ item, onClose }) {
-  const [activeTab, setActiveTab]   = useState('timeline');
-  const [timeline, setTimeline]     = useState(null);
-  const [tlLoading, setTlLoading]   = useState(true);
-  const [tlError, setTlError]       = useState(null);
-  
-  // Phase 4: Poster ML Analysis
+  const [activeTab, setActiveTab] = useState('synopsis');
+  const [timeline, setTimeline]   = useState(null);
+  const [tlLoading, setTlLoading] = useState(false);
+  const [tlError, setTlError]     = useState(null);
   const [posterColor, setPosterColor] = useState(null);
+  const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const saved = isInWatchlist(item.id, item.type);
 
-  const PANEL_TABS = [
-    { id: 'timeline',    label: '📅 Timeline' },
-    ...(item.type === 'movie' ? [
-        { id: 'graph', label: '🕸️ Graph' },
-        { id: 'ml', label: '🤖 ML Recs' }
-    ] : []),
-    { id: 'synopsis',    label: '📖 Synopsis' },
-  ];
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
 
-  // Fetch timeline on mount
-  useState(() => {
+  // Fetch timeline when timeline tab is opened
+  useEffect(() => {
+    if (activeTab !== 'timeline') return;
+    if (timeline) return; // already loaded
     let cancelled = false;
     async function load() {
       setTlLoading(true); setTlError(null);
       try {
-        const ep = item.type === 'anime'
-          ? `${API}/timeline/anime/${item.id}`
-          : `${API}/timeline/movie/${item.id}`;
+        const ep = item.type === 'anime' ? `${API}/timeline/anime/${item.id}` : `${API}/timeline/movie/${item.id}`;
         const res = await fetch(ep);
         if (!res.ok) throw new Error(`${res.status}`);
         const data = await res.json();
@@ -404,124 +346,82 @@ function TimelinePanel({ item, onClose }) {
         if (!cancelled) setTlLoading(false);
       }
     }
-    
-    async function analyzePoster() {
-      if (!item.posterUrl) return;
-      try {
-        const res = await fetch(`${ML_API}/poster/analyze`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ posterUrl: item.posterUrl })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled && data.dominantColor) {
-            setPosterColor(data.dominantColor);
-          }
-        }
-      } catch (e) {
-        // fail silently for ML
-      }
-    }
-    
     load();
-    analyzePoster();
     return () => { cancelled = true; };
-  });
+  }, [activeTab, item.id, item.type]);
+
+  // Poster color analysis
+  useEffect(() => {
+    if (!item.posterUrl) return;
+    fetch(`${ML_API}/poster/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ posterUrl: item.posterUrl })
+    }).then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.dominantColor) setPosterColor(d.dominantColor); })
+      .catch(() => {});
+  }, [item.posterUrl]);
+
+  const handleBookmark = () => {
+    if (saved) { removeFromWatchlist(item.id, item.type); showToast(`Removed "${item.title}"`, 'info'); }
+    else       { addToWatchlist(item); showToast(`Saved "${item.title}" ✓`, 'success'); }
+  };
+
+  const PANEL_TABS = [
+    { id: 'synopsis',  label: '📖 Details' },
+    { id: 'timeline',  label: '📅 Timeline' },
+    ...(item.type === 'movie' ? [
+      { id: 'graph', label: '🕸️ Graph' },
+      { id: 'ml',    label: '🤖 ML Recs' },
+    ] : []),
+  ];
 
   const scrollToCurrent = useCallback(node => {
-    if (node) {
-      const cur = node.querySelector('.tl-entry--current');
-      if (cur) cur.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
+    if (node) { const cur = node.querySelector('.tl-entry--current'); if (cur) cur.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' }); }
   }, []);
 
   const currentEntry = timeline?.entries?.find(e => e.isCurrent);
 
   return (
     <div className="tl-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div 
-        className="tl-panel" 
-        role="dialog" 
-        aria-modal="true"
-        style={posterColor ? { '--panel-bg': posterColor, background: 'linear-gradient(to bottom, var(--panel-bg), var(--bg-1))' } : {}}
-      >
+      <div className="tl-panel" role="dialog" aria-modal="true"
+        style={posterColor ? { '--panel-bg': posterColor, background: `linear-gradient(to bottom, ${posterColor}22, var(--bg))` } : {}}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="tl-panel__header">
           <button className="tl-back-btn" onClick={onClose}>← Back</button>
           <div className="tl-panel__title-wrap">
             <span className={`tl-type-badge tl-type-badge--${item.type}`}>{item.type}</span>
-            <h2 className="tl-panel__franchise">
-              {tlLoading ? '…' : (timeline?.franchiseName || item.title)}
-            </h2>
-            {timeline && (
-              <span className="tl-count-badge">
-                {timeline.entries?.length} {timeline.entries?.length === 1 ? 'entry' : 'entries'}
-              </span>
-            )}
+            <h2 className="tl-panel__franchise">{item.title}</h2>
+            {timeline && <span className="tl-count-badge">{timeline.entries?.length} entries</span>}
           </div>
+          <button
+            onClick={handleBookmark}
+            style={{
+              background: saved ? 'rgba(124,111,255,0.2)' : 'transparent',
+              border: `1px solid ${saved ? 'var(--accent)' : 'var(--border)'}`,
+              color: saved ? 'var(--accent)' : 'var(--text-2)',
+              borderRadius:'999px', padding:'0.4rem 1rem',
+              fontSize:'0.82rem', cursor:'pointer',
+              transition:'all 0.2s ease',
+            }}
+          >
+            {saved ? '🔖 Saved' : '+ Save'}
+          </button>
         </div>
 
-        {/* ── Sub-tabs ── */}
+        {/* Tabs */}
         <div className="tl-tabs">
           {PANEL_TABS.map(t => (
-            <button
-              key={t.id}
-              className={`tl-tab${activeTab === t.id ? ' tl-tab--active' : ''}`}
-              onClick={() => setActiveTab(t.id)}
-            >
+            <button key={t.id} className={`tl-tab${activeTab === t.id ? ' tl-tab--active' : ''}`} onClick={() => setActiveTab(t.id)}>
               {t.label}
             </button>
           ))}
         </div>
 
-        {/* ── Tab Content ── */}
+        {/* Tab Content */}
         <div className="tl-body">
-
-          {/* Timeline tab */}
-          {activeTab === 'timeline' && (
-            <div className="tl-track-wrap">
-              {tlLoading && (
-                <div className="tl-loading">
-                  <div className="spinner" />
-                  <p>Building timeline…</p>
-                </div>
-              )}
-              {tlError && !tlLoading && (
-                <div className="tl-loading">
-                  <span style={{ fontSize: '2rem' }}>⚠️</span>
-                  <p style={{ color: 'var(--text-2)' }}>{tlError}</p>
-                </div>
-              )}
-              {!tlLoading && !tlError && timeline && (
-                <div className="tl-track" ref={scrollToCurrent}>
-                  {timeline.entries.map((entry, i) => (
-                    <div key={entry.id} className="tl-entry-wrap">
-                      <TimelineEntry entry={entry} />
-                      {i < timeline.entries.length - 1 && <div className="tl-connector" />}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Graph tab (movies only) */}
-          {activeTab === 'graph' && item.type === 'movie' && (
-            <div className="tl-graph-wrap">
-              <GraphConnections tmdbId={item.id} />
-            </div>
-          )}
-
-          {/* ML tab (movies only) */}
-          {activeTab === 'ml' && item.type === 'movie' && (
-            <div className="tl-graph-wrap">
-              <MLRecommendations item={item} />
-            </div>
-          )}
-
-          {/* Synopsis tab */}
+          {/* Synopsis / Details tab */}
           {activeTab === 'synopsis' && (
             <div className="tl-detail">
               <div className="tl-detail__left">
@@ -536,20 +436,50 @@ function TimelinePanel({ item, onClose }) {
                 <div className="tl-detail__meta">
                   {item.year && item.year !== '—' && <span className="tl-detail__chip">📅 {item.year}</span>}
                   {item.rating > 0 && <span className="tl-detail__chip">⭐ {item.rating} / 10</span>}
-                  {currentEntry && (
-                    <span className="tl-detail__chip">
-                      #{currentEntry.position} of {timeline?.entries?.length}
-                    </span>
-                  )}
+                  {currentEntry && <span className="tl-detail__chip">#{currentEntry.position} of {timeline?.entries?.length}</span>}
                 </div>
                 {item.genres?.length > 0 && (
-                  <div className="genre-list" style={{ marginBottom: '1rem' }}>
+                  <div className="genre-list" style={{ marginBottom:'1rem' }}>
                     {item.genres.map(g => <span key={g} className="genre-tag">{g}</span>)}
                   </div>
                 )}
                 <p className="tl-detail__synopsis">{item.synopsis || 'No synopsis available.'}</p>
+                {posterColor && (
+                  <div style={{ marginTop:'1rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                    <div style={{ width:16, height:16, borderRadius:'50%', background:posterColor }} />
+                    <span style={{ fontSize:'0.78rem', color:'var(--text-3)' }}>Dominant poster color: {posterColor}</span>
+                  </div>
+                )}
               </div>
             </div>
+          )}
+
+          {/* Timeline tab */}
+          {activeTab === 'timeline' && (
+            <div className="tl-track-wrap">
+              {tlLoading && <div className="tl-loading"><div className="spinner" /><p>Building timeline…</p></div>}
+              {tlError && !tlLoading && <div className="tl-loading"><span style={{ fontSize:'2rem' }}>⚠️</span><p style={{ color:'var(--text-2)' }}>{tlError}</p></div>}
+              {!tlLoading && !tlError && timeline && (
+                <div className="tl-track" ref={scrollToCurrent}>
+                  {timeline.entries.map((entry, i) => (
+                    <div key={entry.id} className="tl-entry-wrap">
+                      <TimelineEntry entry={entry} />
+                      {i < timeline.entries.length - 1 && <div className="tl-connector" />}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Graph tab */}
+          {activeTab === 'graph' && item.type === 'movie' && (
+            <div className="tl-graph-wrap"><GraphConnections tmdbId={item.id} /></div>
+          )}
+
+          {/* ML tab */}
+          {activeTab === 'ml' && item.type === 'movie' && (
+            <div className="tl-graph-wrap"><MLRecommendations item={item} /></div>
           )}
         </div>
       </div>
@@ -558,35 +488,104 @@ function TimelinePanel({ item, onClose }) {
 }
 
 /* ─────────────────────────────────────────────────────────── */
+/* Navbar with watchlist count badge                           */
+/* ─────────────────────────────────────────────────────────── */
+function AppNavbar({ currentPage, onNav }) {
+  const { watchlist } = useWatchlist();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const h = () => setScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', h, { passive: true });
+    return () => window.removeEventListener('scroll', h);
+  }, []);
+
+  return (
+    <nav style={{
+      position:'sticky', top:0, zIndex:100,
+      display:'flex', alignItems:'center', justifyContent:'space-between',
+      padding:'0 1.5rem', height:64,
+      background: scrolled ? 'rgba(7,7,15,0.97)' : 'rgba(7,7,15,0.85)',
+      backdropFilter:'blur(20px)',
+      borderBottom:`1px solid ${scrolled ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)'}`,
+      transition:'background 0.3s, border-color 0.3s',
+    }}>
+      <button onClick={() => onNav('home')} style={{
+        background:'none', border:'none', cursor:'pointer',
+        fontSize:'1.3rem', fontWeight:800,
+        background:'linear-gradient(135deg,#fff 30%,#7c6fff)',
+        WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text',
+      }}>
+        🎬 CineVerse
+      </button>
+
+      <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+        <button
+          onClick={() => onNav(currentPage === 'watchlist' ? 'home' : 'watchlist')}
+          style={{
+            display:'flex', alignItems:'center', gap:'0.4rem',
+            padding:'0.4rem 0.9rem',
+            background: currentPage === 'watchlist' ? 'rgba(124,111,255,0.15)' : 'transparent',
+            border:`1px solid ${currentPage === 'watchlist' ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius:'999px', color: currentPage === 'watchlist' ? 'var(--accent)' : 'var(--text-2)',
+            fontSize:'0.82rem', cursor:'pointer', transition:'all 0.2s',
+          }}
+        >
+          🔖 Watchlist
+          {watchlist.length > 0 && (
+            <span style={{
+              background:'var(--accent)', color:'#fff',
+              borderRadius:'999px', fontSize:'0.65rem',
+              padding:'0.05rem 0.4rem', fontWeight:700, minWidth:18, textAlign:'center',
+            }}>{watchlist.length}</span>
+          )}
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────── */
 /* Main App                                                     */
 /* ─────────────────────────────────────────────────────────── */
-export default function App() {
-  const [query, setQuery]       = useState('');
-  const [tab, setTab]           = useState('all');
-  const [results, setResults]   = useState(null);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState(null);
+function AppContent() {
+  const [query, setQuery]         = useState('');
+  const [tab, setTab]             = useState('all');
+  const [results, setResults]     = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState(null);
   const [timelineItem, setTimeline] = useState(null);
+  const [page, setPage]           = useState('home'); // 'home' | 'watchlist'
+  const inputRef                  = useRef(null);
 
   const TABS = [
-    { id: 'all',   label: 'All' },
+    { id: 'all',   label: '🎯 All' },
     { id: 'movie', label: '🎬 Movies' },
     { id: 'anime', label: '🎌 Anime' },
     { id: 'vibe',  label: '✨ Vibe Match' },
   ];
 
+  // '/' focuses search
+  useEffect(() => {
+    const h = (e) => { if (e.key === '/' && document.activeElement !== inputRef.current) { e.preventDefault(); inputRef.current?.focus(); } };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
   async function doSearch(q = query, t = tab) {
     if (t === 'vibe') { setResults(null); return; }
     const trimmed = q.trim();
     if (!trimmed) return;
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setResults(null);
     try {
       const res = await fetch(`${API}/search?q=${encodeURIComponent(trimmed)}&type=${t}`);
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
       setResults(data);
+      if ((data.movies?.length + data.anime?.length) === 0) showToast('No results found', 'info');
     } catch (e) {
       setError(e.message || 'Something went wrong.');
+      showToast('Search failed — check if the backend is online', 'error');
     } finally {
       setLoading(false);
     }
@@ -600,73 +599,113 @@ export default function App() {
 
   return (
     <div className="app">
-      <nav className="navbar">
-        <span className="navbar__logo">CineVerse</span>
-        <span className="navbar__badge">Phase 5</span>
-      </nav>
+      <AppNavbar currentPage={page} onNav={setPage} />
+      <ToastContainer />
 
-      <section className="hero">
-        <h1 className="hero__title">Should I watch this?</h1>
-        <p className="hero__sub">
-          Spoiler-free summaries · Timeline placement · <strong>Graph discovery</strong>
-        </p>
-        <div className="search-wrap">
-          <div className="search-box" id="search-box">
-            <span className="search-icon">🔍</span>
-            <input
-              id="search-input"
-              className="search-input"
-              type="text"
-              placeholder="Search movies or anime… e.g. Iron Man, Naruto"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && doSearch()}
-              autoComplete="off"
-            />
-            <button id="search-btn" className="search-btn" onClick={() => doSearch()} disabled={loading}>
-              {loading ? 'Searching…' : 'Search'}
-            </button>
-          </div>
-          <div className="tabs" role="tablist">
-            {TABS.map(t => (
-              <button key={t.id} id={`tab-${t.id}`}
-                className={`tab${tab === t.id ? ' active' : ''}`}
-                role="tab" aria-selected={tab === t.id}
-                onClick={() => switchTab(t.id)}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+      {page === 'watchlist' ? (
+        <main className="content">
+          <WatchlistPage onCardClick={(item) => { setTimeline(item); setPage('home'); }} />
+        </main>
+      ) : (
+        <>
+          {/* Hero + Search */}
+          <section className="hero">
+            <h1 className="hero__title">Should I watch this?</h1>
+            <p className="hero__sub">
+              Spoiler-free summaries · Timeline placement · <strong>Graph discovery</strong>
+            </p>
 
-      <main className="content" id="results">
-        {loading && <div className="state-center"><div className="spinner" /><p className="state-text">Searching…</p></div>}
-        {!loading && error && <div className="state-center"><span className="state-icon">⚠️</span><p className="state-title">Error</p><p className="state-text">{error}</p></div>}
-        {!loading && !error && tab === 'vibe' && (
-          <VibeMatch onCardClick={setTimeline} />
-        )}
-        {!loading && !error && tab !== 'vibe' && results === null && (
-          <div className="state-center" style={{ marginTop: '3rem' }}>
-            <span className="state-icon">🎬</span>
-            <p className="state-title">Find your next watch</p>
-            <p className="state-text">Search any title — click a result to see its timeline and Neo4j graph connections.</p>
-          </div>
-        )}
-        {!loading && !error && tab !== 'vibe' && results !== null && !hasAny && (
-          <div className="state-center"><span className="state-icon">🔎</span><p className="state-title">No results</p><p className="state-text">Try a different title.</p></div>
-        )}
-        {!loading && !error && tab !== 'vibe' && hasAny && (
-          <>
-            {(tab === 'all' || tab === 'movie') && <ResultsSection title="Movies" icon="🎬" items={results.movies} onCardClick={setTimeline} />}
-            {(tab === 'all' || tab === 'anime') && <ResultsSection title="Anime"  icon="🎌" items={results.anime}  onCardClick={setTimeline} />}
-          </>
-        )}
-      </main>
+            <div className="search-wrap">
+              <div className="search-box" id="search-box">
+                <span className="search-icon">🔍</span>
+                <input
+                  ref={inputRef}
+                  id="search-input"
+                  className="search-input"
+                  type="text"
+                  placeholder='Search movies or anime… (Press "/" to focus)'
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && doSearch()}
+                  autoComplete="off"
+                  spellCheck="false"
+                />
+                {query && (
+                  <button className="search-clear" onClick={() => { setQuery(''); setResults(null); inputRef.current?.focus(); }}>✕</button>
+                )}
+                <button id="search-btn" className="search-btn" onClick={() => doSearch()} disabled={loading}>
+                  {loading ? '…' : 'Search'}
+                </button>
+              </div>
 
-      <footer className="footer">CineVerse · TMDB · Jikan · Neo4j AuraDB</footer>
+              {/* Type Tabs */}
+              <div className="tabs" role="tablist">
+                {TABS.map(t => (
+                  <button key={t.id} id={`tab-${t.id}`}
+                    className={`tab${tab === t.id ? ' active' : ''}`}
+                    role="tab" aria-selected={tab === t.id}
+                    onClick={() => switchTab(t.id)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Results */}
+          <main className="content" id="results">
+            {loading && <SkeletonGrid count={8} />}
+            {!loading && error && (
+              <div className="state-center">
+                <span className="state-icon">⚠️</span>
+                <p className="state-title">Error</p>
+                <p className="state-text">{error}</p>
+                <button onClick={() => doSearch()} style={{
+                  marginTop:'1rem', padding:'0.5rem 1.5rem',
+                  background:'var(--accent)', border:'none', borderRadius:'999px',
+                  color:'#fff', cursor:'pointer', fontSize:'0.9rem',
+                }}>Retry</button>
+              </div>
+            )}
+            {!loading && !error && tab === 'vibe' && <VibeMatch onCardClick={setTimeline} />}
+            {!loading && !error && tab !== 'vibe' && results === null && (
+              <div className="state-center" style={{ marginTop:'3rem' }}>
+                <span className="state-icon">🎬</span>
+                <p className="state-title">Find your next watch</p>
+                <p className="state-text">Search any title — click a result to see its timeline, Neo4j graph, and ML recommendations.</p>
+                <p className="state-text" style={{ marginTop:'0.5rem', fontSize:'0.78rem', opacity:0.6 }}>Press <kbd style={{ padding:'0.1rem 0.3rem', border:'1px solid var(--border)', borderRadius:4 }}>/</kbd> to focus search</p>
+              </div>
+            )}
+            {!loading && !error && tab !== 'vibe' && results !== null && !hasAny && (
+              <div className="state-center">
+                <span className="state-icon">🔎</span>
+                <p className="state-title">No results</p>
+                <p className="state-text">Try a different title.</p>
+              </div>
+            )}
+            {!loading && !error && tab !== 'vibe' && hasAny && (
+              <>
+                {(tab === 'all' || tab === 'movie') && <ResultsSection title="Movies" icon="🎬" items={results.movies} onCardClick={setTimeline} />}
+                {(tab === 'all' || tab === 'anime') && <ResultsSection title="Anime"  icon="🎌" items={results.anime}  onCardClick={setTimeline} />}
+              </>
+            )}
+          </main>
+
+          <Footer />
+        </>
+      )}
 
       {timelineItem && <TimelinePanel item={timelineItem} onClose={() => setTimeline(null)} />}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <WatchlistProvider>
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
+    </WatchlistProvider>
   );
 }
