@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +34,20 @@ public class JikanService {
     public record AnimeResult(
         int id, String title, String year, double rating,
         String posterUrl, String type, String synopsis, List<String> genres
+    ) {}
+
+    public record SpoilerSafeResponse(
+        String id,
+        String title,
+        String year,
+        double rating,
+        String posterUrl,
+        int totalEpisodes,
+        int watchedEpisodes,
+        int progressPercent,
+        boolean spoilerShieldActive,
+        String synopsis,
+        List<String> safeEpisodes
     ) {}
 
     @SuppressWarnings("unchecked")
@@ -77,6 +92,43 @@ public class JikanService {
         }
     }
 
+    public SpoilerSafeResponse getSpoilerSafeAnime(int malId, int upToEpisode) {
+        int watchedEpisodes = Math.max(upToEpisode, 0);
+        String cacheKey = "jikan:spoiler-safe:" + malId + ":" + watchedEpisodes;
+        SpoilerSafeResponse cached = cache.get(cacheKey);
+        if (cached != null) return cached;
+
+        Optional<AnimeResult> animeOpt = getAnimeById(malId);
+        if (animeOpt.isEmpty()) return null;
+
+        AnimeResult anime = animeOpt.get();
+        int totalEpisodes = fetchTotalEpisodes(malId);
+        if (totalEpisodes <= 0) totalEpisodes = watchedEpisodes;
+
+        int safeLimit = totalEpisodes > 0 ? Math.min(watchedEpisodes, totalEpisodes) : watchedEpisodes;
+        boolean spoilerShieldActive = totalEpisodes > 0 && watchedEpisodes < totalEpisodes;
+        int progressPercent = totalEpisodes > 0
+            ? Math.min(100, (int) Math.round((safeLimit * 100.0) / totalEpisodes))
+            : 0;
+        List<String> safeEpisodes = fetchEpisodeTitles(malId, safeLimit);
+
+        SpoilerSafeResponse result = new SpoilerSafeResponse(
+            String.valueOf(anime.id()),
+            anime.title(),
+            anime.year(),
+            anime.rating(),
+            anime.posterUrl(),
+            totalEpisodes,
+            watchedEpisodes,
+            progressPercent,
+            spoilerShieldActive,
+            spoilerShieldActive ? null : anime.synopsis(),
+            safeEpisodes
+        );
+        cache.put(cacheKey, result);
+        return result;
+    }
+
     @SuppressWarnings("unchecked")
     private AnimeResult toAnimeResult(Map<String, Object> a) {
         String posterUrl = null;
@@ -102,6 +154,56 @@ public class JikanService {
         List<String> genres = genreList.stream()
             .map(g -> (String) g.getOrDefault("name", "")).filter(g -> !g.isBlank()).toList();
         return new AnimeResult(id, title, year, Math.round(score * 10.0) / 10.0, posterUrl, "anime", synopsis, genres);
+    }
+
+    @SuppressWarnings("unchecked")
+    private int fetchTotalEpisodes(int malId) {
+        try {
+            String url = String.format("%s/anime/%d", BASE, malId);
+            ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
+            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) return 0;
+            Map<String, Object> data = (Map<String, Object>) resp.getBody().get("data");
+            if (data == null || data.get("episodes") == null) return 0;
+            return ((Number) data.get("episodes")).intValue();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> fetchEpisodeTitles(int malId, int maxEpisodes) {
+        if (maxEpisodes <= 0) return List.of();
+        List<String> titles = new ArrayList<>();
+        int page = 1;
+        try {
+            while (titles.size() < maxEpisodes) {
+                String url = String.format("%s/anime/%d/episodes?page=%d", BASE, malId, page);
+                ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
+                if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) break;
+                List<Map<String, Object>> data = (List<Map<String, Object>>) resp.getBody().get("data");
+                if (data == null || data.isEmpty()) break;
+
+                for (Map<String, Object> ep : data) {
+                    if (titles.size() >= maxEpisodes) break;
+                    Object titleObj = ep.get("title");
+                    if (titleObj == null || String.valueOf(titleObj).isBlank()) {
+                        titleObj = ep.get("title_japanese");
+                    }
+                    if (titleObj == null || String.valueOf(titleObj).isBlank()) {
+                        titleObj = "Episode " + (titles.size() + 1);
+                    }
+                    titles.add(String.valueOf(titleObj));
+                }
+
+                Map<String, Object> pagination = (Map<String, Object>) resp.getBody().get("pagination");
+                boolean hasNextPage = pagination != null && Boolean.TRUE.equals(pagination.get("has_next_page"));
+                if (!hasNextPage) break;
+                page++;
+            }
+        } catch (Exception ignored) {
+            // Return whatever was fetched so far.
+        }
+        return titles;
     }
 
     @SuppressWarnings("unchecked")

@@ -32,9 +32,14 @@ public class TmdbService {
     }
 
     public record MediaResult(
-        int id, String title, String year, double rating,
-        String posterUrl, String type, String synopsis, List<String> genres
+        String id, String title, String year, double rating,
+        String posterUrl, String type, String synopsis, List<String> genres,
+        String collectionId
     ) {}
+
+    public record CastMember(String name, String character) {}
+
+    public record CollectionResult(String id, String name, List<MediaResult> parts) {}
 
     @SuppressWarnings("unchecked")
     public List<MediaResult> searchMovies(String query) {
@@ -57,18 +62,18 @@ public class TmdbService {
     }
 
     @SuppressWarnings("unchecked")
-    public Optional<MediaResult> getMovieById(int tmdbId) {
+    public MediaResult getMovieById(int tmdbId) {
         String cacheKey = "tmdb:detail:" + tmdbId;
         MediaResult cached = cache.get(cacheKey);
-        if (cached != null) return Optional.of(cached);
+        if (cached != null) return cached;
         try {
             String url = String.format("%s/movie/%d?api_key=%s", BASE, tmdbId, apiKey);
             ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
-            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) return Optional.empty();
+            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) return null;
             MediaResult result = toMediaResult(resp.getBody(), "movie");
             cache.put(cacheKey, result);
-            return Optional.of(result);
-        } catch (RestClientException e) { return Optional.empty(); }
+            return result;
+        } catch (RestClientException e) { return null; }
     }
 
     @SuppressWarnings("unchecked")
@@ -91,7 +96,63 @@ public class TmdbService {
     }
 
     @SuppressWarnings("unchecked")
+    public List<CastMember> getMovieCredits(int tmdbId) {
+        String cacheKey = "tmdb:credits:" + tmdbId;
+        List<CastMember> cached = cache.get(cacheKey);
+        if (cached != null) return cached;
+        try {
+            String url = String.format("%s/movie/%d/credits?api_key=%s", BASE, tmdbId, apiKey);
+            ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
+            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) return List.of();
+            List<Map<String, Object>> cast = (List<Map<String, Object>>) resp.getBody().get("cast");
+            if (cast == null) return List.of();
+            List<CastMember> credits = cast.stream()
+                .filter(c -> c.get("name") != null)
+                .limit(10)
+                .map(c -> new CastMember(
+                    String.valueOf(c.get("name")),
+                    c.get("character") != null ? String.valueOf(c.get("character")) : ""
+                ))
+                .toList();
+            cache.put(cacheKey, credits);
+            return credits;
+        } catch (RestClientException e) {
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public CollectionResult getCollection(String collectionId) {
+        if (collectionId == null || collectionId.isBlank()) return null;
+        String normalizedId = collectionId.trim();
+        String cacheKey = "tmdb:collection:" + normalizedId;
+        CollectionResult cached = cache.get(cacheKey);
+        if (cached != null) return cached;
+        try {
+            String url = String.format("%s/collection/%s?api_key=%s", BASE, normalizedId, apiKey);
+            ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
+            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) return null;
+            Map<String, Object> body = resp.getBody();
+            String name = body.get("name") != null ? String.valueOf(body.get("name")) : "";
+            List<Map<String, Object>> rawParts = (List<Map<String, Object>>) body.getOrDefault("parts", List.of());
+            List<MediaResult> parts = rawParts.stream()
+                .map(p -> toMediaResult(p, "movie", normalizedId))
+                .toList();
+            CollectionResult result = new CollectionResult(normalizedId, name, parts);
+            cache.put(cacheKey, result);
+            return result;
+        } catch (RestClientException e) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
     private MediaResult toMediaResult(Map<String, Object> m, String type) {
+        return toMediaResult(m, type, extractCollectionId(m));
+    }
+
+    @SuppressWarnings("unchecked")
+    private MediaResult toMediaResult(Map<String, Object> m, String type, String fallbackCollectionId) {
         String posterPath  = (String) m.get("poster_path");
         String posterUrl   = posterPath != null ? IMG + posterPath : null;
         String title       = (String) m.getOrDefault("title", m.getOrDefault("name", "Unknown"));
@@ -99,10 +160,47 @@ public class TmdbService {
         String year        = releaseDate.length() >= 4 ? releaseDate.substring(0, 4) : "—";
         double rating      = ((Number) m.getOrDefault("vote_average", 0)).doubleValue();
         String synopsis    = (String) m.getOrDefault("overview", "");
-        List<Integer> genreIds = (List<Integer>) m.getOrDefault("genre_ids", List.of());
-        List<String> genres    = genreIds.stream().map(id -> GENRE_MAP.getOrDefault(id, "")).filter(g -> !g.isBlank()).toList();
+        List<String> genres    = extractGenres(m);
         int id = ((Number) m.getOrDefault("id", 0)).intValue();
-        return new MediaResult(id, title, year, Math.round(rating * 10.0) / 10.0, posterUrl, type, synopsis, genres);
+        String collectionId = fallbackCollectionId != null ? fallbackCollectionId : extractCollectionId(m);
+        return new MediaResult(String.valueOf(id), title, year, Math.round(rating * 10.0) / 10.0, posterUrl, type, synopsis, genres, collectionId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractCollectionId(Map<String, Object> m) {
+        Object rawCollection = m.get("belongs_to_collection");
+        if (rawCollection instanceof Map<?, ?> col && col.get("id") != null) {
+            return String.valueOf(col.get("id"));
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> extractGenres(Map<String, Object> m) {
+        Object rawGenreIds = m.get("genre_ids");
+        if (rawGenreIds instanceof List<?> genreIdList) {
+            return genreIdList.stream()
+                .filter(Number.class::isInstance)
+                .map(Number.class::cast)
+                .map(Number::intValue)
+                .map(id -> GENRE_MAP.getOrDefault(id, ""))
+                .filter(g -> !g.isBlank())
+                .toList();
+        }
+
+        Object rawGenres = m.get("genres");
+        if (rawGenres instanceof List<?> genreMaps) {
+            return genreMaps.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(g -> g.get("name"))
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .filter(g -> !g.isBlank())
+                .toList();
+        }
+
+        return List.of();
     }
 
     private static final Map<Integer, String> GENRE_MAP = Map.ofEntries(
