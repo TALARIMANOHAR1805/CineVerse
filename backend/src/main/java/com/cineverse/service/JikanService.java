@@ -108,4 +108,67 @@ public class JikanService {
     private Map<String, Object> getImages(Map<String, Object> a) {
         return (Map<String, Object>) a.get("images");
     }
+
+    /**
+     * Build an anime timeline (PREQUEL → root → SEQUEL chain) for a given MAL ID.
+     * Called by TimelineService to construct the watch-order view.
+     *
+     * @param malId  MyAnimeList ID of the currently-viewed anime
+     * @return TimelineService.TimelineResponse, or null if not found
+     */
+    @SuppressWarnings("unchecked")
+    public com.cineverse.service.TimelineService.TimelineResponse getAnimeTimeline(int malId) {
+        String cacheKey = "jikan:timeline:" + malId;
+        com.cineverse.service.TimelineService.TimelineResponse cached = cache.get(cacheKey);
+        if (cached != null) return cached;
+
+        try {
+            // Fetch the anime entry to get its title for the franchise name
+            Optional<AnimeResult> root = getAnimeById(malId);
+            if (root.isEmpty()) return null;
+
+            // Fetch related entries (sequels, prequels) from Jikan
+            String url = String.format("%s/anime/%d/relations", BASE, malId);
+            ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
+
+            List<com.cineverse.service.TimelineService.TimelineEntry> entries = new java.util.ArrayList<>();
+
+            // Always include the root entry
+            AnimeResult r = root.get();
+            entries.add(new com.cineverse.service.TimelineService.TimelineEntry(
+                String.valueOf(r.id()), r.title(), r.year(), r.posterUrl(), r.rating(), 1, true
+            ));
+
+            // If relations available, add sequels
+            if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                List<Map<String, Object>> data = (List<Map<String, Object>>) resp.getBody().get("data");
+                if (data != null) {
+                    for (Map<String, Object> rel : data) {
+                        String relType = (String) rel.get("relation");
+                        if (!"Sequel".equalsIgnoreCase(relType) && !"Prequel".equalsIgnoreCase(relType)) continue;
+                        List<Map<String, Object>> items = (List<Map<String, Object>>) rel.get("entry");
+                        if (items == null) continue;
+                        for (Map<String, Object> item : items) {
+                            int relId = ((Number) item.getOrDefault("mal_id", 0)).intValue();
+                            if (relId == 0 || relId == malId) continue;
+                            getAnimeById(relId).ifPresent(a ->
+                                entries.add(new com.cineverse.service.TimelineService.TimelineEntry(
+                                    String.valueOf(a.id()), a.title(), a.year(), a.posterUrl(), a.rating(), entries.size() + 1, false
+                                ))
+                            );
+                        }
+                    }
+                }
+            }
+
+            var result = new com.cineverse.service.TimelineService.TimelineResponse(
+                r.title(), "anime", String.valueOf(malId), entries
+            );
+            cache.put(cacheKey, result);
+            return result;
+        } catch (Exception e) {
+            log.warn("Failed to build anime timeline for malId={}: {}", malId, e.getMessage());
+            return null;
+        }
+    }
 }
