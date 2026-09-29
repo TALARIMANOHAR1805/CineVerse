@@ -1,7 +1,21 @@
 /**
- * SkeletonCard — Placeholder card shown while search results load.
- * Uses CSS shimmer animation from index.css.
+ * Skeleton.jsx v2 — Shimmer skeleton loaders for CineVerse.
+ *
+ * Components:
+ *  - SkeletonCard  — single card placeholder
+ *  - SkeletonGrid  — grid of n cards
+ *  - SkeletonDetail — detail panel placeholder
+ *
+ * Author: Koushik-31368
  */
+
+const shimmerStyle = {
+  background: 'linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%)',
+  backgroundSize: '200% 100%',
+  animation: 'shimmer 1.4s infinite',
+  borderRadius: 6,
+};
+
 export function SkeletonCard() {
   return (
     <div style={{
@@ -9,70 +23,55 @@ export function SkeletonCard() {
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius)',
       overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
     }}>
-      {/* Poster skeleton */}
-      <div className="skeleton" style={{ height: '260px', width: '100%' }} />
-      {/* Body skeleton */}
-      <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-        <div className="skeleton" style={{ height: '0.7rem', width: '40%' }} />
-        <div className="skeleton" style={{ height: '1rem', width: '85%' }} />
-        <div className="skeleton" style={{ height: '1rem', width: '60%' }} />
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-          <div className="skeleton" style={{ height: '0.8rem', width: '50px', borderRadius: '999px' }} />
-          <div className="skeleton" style={{ height: '0.8rem', width: '50px', borderRadius: '999px' }} />
+      {/* Poster */}
+      <div style={{ ...shimmerStyle, aspectRatio: '2/3', width: '100%' }} />
+      {/* Body */}
+      <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ ...shimmerStyle, height: 10, width: '40%' }} />
+        <div style={{ ...shimmerStyle, height: 14, width: '85%' }} />
+        <div style={{ ...shimmerStyle, height: 10, width: '60%' }} />
+        <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.2rem' }}>
+          <div style={{ ...shimmerStyle, height: 18, width: 50, borderRadius: 999 }} />
+          <div style={{ ...shimmerStyle, height: 18, width: 40, borderRadius: 999 }} />
         </div>
       </div>
     </div>
   );
 }
 
-/**
- * SkeletonGrid — Renders N skeleton cards in a responsive grid.
- * @param {number} count - number of skeleton cards (default: 8)
- */
-export function SkeletonGrid({ count = 8 }) {
+export function SkeletonGrid({ count = 8, label = 'Loading…' }) {
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-      gap: '1.25rem',
-      padding: '0 1.5rem',
-    }}>
-      {Array.from({ length: count }).map((_, i) => (
-        <SkeletonCard key={i} />
-      ))}
+    <div>
+      {/* Section header skeleton */}
+      <div style={{ padding: '0 1.5rem', marginBottom: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div style={{ ...shimmerStyle, width: 24, height: 24, borderRadius: '50%' }} />
+        <div style={{ ...shimmerStyle, width: 160, height: 18 }} />
+        <div style={{ ...shimmerStyle, width: 80, height: 20, borderRadius: 999 }} />
+      </div>
+      {/* Grid */}
+      <div className="results-grid" aria-label={label} aria-busy="true">
+        {Array.from({ length: count }, (_, i) => <SkeletonCard key={i} />)}
+      </div>
     </div>
   );
 }
 
-/**
- * SkeletonDetail — Full-page skeleton for detail/modal views.
- */
 export function SkeletonDetail() {
   return (
-    <div style={{
-      padding: '2rem',
-      display: 'flex',
-      gap: '2rem',
-      flexWrap: 'wrap',
-    }}>
-      {/* Poster */}
-      <div className="skeleton" style={{ width: '200px', height: '300px', borderRadius: 'var(--radius)', flexShrink: 0 }} />
-      {/* Info */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: '200px' }}>
-        <div className="skeleton" style={{ height: '0.7rem', width: '30%' }} />
-        <div className="skeleton" style={{ height: '1.8rem', width: '75%' }} />
-        <div className="skeleton" style={{ height: '1rem', width: '50%' }} />
-        <div className="skeleton" style={{ height: '0.85rem', width: '100%' }} />
-        <div className="skeleton" style={{ height: '0.85rem', width: '90%' }} />
-        <div className="skeleton" style={{ height: '0.85rem', width: '70%' }} />
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} className="skeleton" style={{ height: '1.5rem', width: '70px', borderRadius: '999px' }} />
+    <div style={{ padding: '1.5rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+      <div style={{ ...shimmerStyle, width: 160, height: 240, borderRadius: 'var(--radius)', flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ ...shimmerStyle, height: 12, width: '30%' }} />
+        <div style={{ ...shimmerStyle, height: 28, width: '70%' }} />
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          {[60, 80, 70].map((w, i) => (
+            <div key={i} style={{ ...shimmerStyle, height: 22, width: w, borderRadius: 999 }} />
           ))}
         </div>
+        {[100, 95, 90, 75, 80].map((w, i) => (
+          <div key={i} style={{ ...shimmerStyle, height: 12, width: `${w}%` }} />
+        ))}
       </div>
     </div>
   );
