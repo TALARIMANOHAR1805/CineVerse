@@ -52,8 +52,10 @@ jobs:
         working-directory: ml
 
       - name: Run pytest
-        run: pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --tb=short
         working-directory: ml
+        env:
+          PYTHONPATH: ${{ github.workspace }}/ml
 
   # ── Frontend: Node 20 / Vite ────────────────────────────────
   frontend:
