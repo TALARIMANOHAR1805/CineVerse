@@ -1,17 +1,6 @@
-"""
-CineVerse ML — Updated requirements with all production dependencies.
+# CineVerse ML — Python dependencies
+# Install with: pip install -r requirements.txt
 
-Dependencies:
-  - fastapi       : Web framework
-  - uvicorn       : ASGI server
-  - httpx         : Async HTTP client for poster fetching
-  - Pillow        : PIL for image colour analysis
-  - pydantic      : Data validation
-  - python-dotenv : .env loading
-  - scikit-learn  : TF-IDF for ML recommendations (optional, future use)
-
-Added by: Koushik-31368
-"""
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 httpx>=0.27.0

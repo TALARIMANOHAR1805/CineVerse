@@ -34,9 +34,11 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Split React into its own chunk for better caching
-          vendor: ['react', 'react-dom'],
+        // manualChunks must be a function, not an object (Rollup requirement)
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'vendor';
+          }
         },
       },
     },
