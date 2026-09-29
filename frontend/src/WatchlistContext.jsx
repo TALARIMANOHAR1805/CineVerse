@@ -1,62 +1,68 @@
 /**
- * WatchlistContext — Global watchlist state using React Context + localStorage.
- * 
- * Provides:
- *   watchlist       {Array}    - list of saved media items
- *   addToWatchlist  {Function} - add item to watchlist
- *   removeFromWatchlist {Function} - remove item by id+type
- *   isInWatchlist   {Function} - check if item is saved
- *   clearWatchlist  {Function} - clear all items
+ * WatchlistContext.jsx v2 — Global watchlist state with localStorage.
+ *
+ * Additions:
+ *  - clearWatchlist()
+ *  - getWatchlistByType()
+ *  - watchlistCount shortcut
+ *
+ * Author: Koushik-31368
  */
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 const WatchlistContext = createContext(null);
-const STORAGE_KEY = 'cineverse_watchlist';
+const STORAGE_KEY = 'cineverse_watchlist_v2';
 
 export function WatchlistProvider({ children }) {
   const [watchlist, setWatchlist] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
+      // Migrate from old key if needed
+      const v2 = localStorage.getItem(STORAGE_KEY);
+      if (v2) return JSON.parse(v2);
+      const v1 = localStorage.getItem('cineverse_watchlist');
+      if (v1) { const data = JSON.parse(v1); localStorage.setItem(STORAGE_KEY, v1); return data; }
       return [];
-    }
+    } catch { return []; }
   });
 
-  // Persist to localStorage on every change
+  // Persist on every change
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlist));
-    } catch {
-      // Storage full or unavailable — fail silently
-    }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlist)); }
+    catch { /* storage full */ }
+  }, [watchlist]);
+
+  const isInWatchlist = useCallback((id, type) => {
+    return watchlist.some(i => String(i.id) === String(id) && i.type === type);
   }, [watchlist]);
 
   const addToWatchlist = useCallback((item) => {
     setWatchlist(prev => {
-      const exists = prev.some(w => w.id === item.id && w.type === item.type);
-      if (exists) return prev;
-      return [...prev, { ...item, savedAt: new Date().toISOString() }];
+      if (prev.some(i => String(i.id) === String(item.id) && i.type === item.type)) return prev;
+      return [{ ...item, savedAt: new Date().toISOString() }, ...prev];
     });
   }, []);
 
   const removeFromWatchlist = useCallback((id, type) => {
-    setWatchlist(prev => prev.filter(w => !(w.id === id && w.type === type)));
+    setWatchlist(prev => prev.filter(i => !(String(i.id) === String(id) && i.type === type)));
   }, []);
 
-  const isInWatchlist = useCallback((id, type) => {
-    return watchlist.some(w => w.id === id && w.type === type);
-  }, [watchlist]);
+  const clearWatchlist = useCallback(() => {
+    setWatchlist([]);
+  }, []);
 
-  const clearWatchlist = useCallback(() => setWatchlist([]), []);
+  const getWatchlistByType = useCallback((type) => {
+    return watchlist.filter(i => i.type === type);
+  }, [watchlist]);
 
   return (
     <WatchlistContext.Provider value={{
       watchlist,
+      watchlistCount: watchlist.length,
+      isInWatchlist,
       addToWatchlist,
       removeFromWatchlist,
-      isInWatchlist,
       clearWatchlist,
+      getWatchlistByType,
     }}>
       {children}
     </WatchlistContext.Provider>
@@ -65,6 +71,6 @@ export function WatchlistProvider({ children }) {
 
 export function useWatchlist() {
   const ctx = useContext(WatchlistContext);
-  if (!ctx) throw new Error('useWatchlist must be used inside <WatchlistProvider>');
+  if (!ctx) throw new Error('useWatchlist must be used inside WatchlistProvider');
   return ctx;
 }
