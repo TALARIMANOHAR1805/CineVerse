@@ -1,54 +1,31 @@
+## CineVerse — Changelog (Updated)
+
 ## [Unreleased]
 
-### Added (Day 3 — 2026-09-28)
-- **Frontend:** Full App.jsx v3 overhaul — integrated WatchlistContext, Toast, Skeleton, Footer, Navbar with live watchlist count badge
-- **Frontend:** Bookmark (+ Save) button on every MediaCard and in the detail panel header
-- **Frontend:** Skeleton loading grid (`<SkeletonGrid>`) replaces plain spinner during search
-- **Frontend:** Escape key closes the detail panel
-- **Frontend:** Retry button shown on search error state
-- **Frontend:** Keyboard `/` shortcut focuses the search input from anywhere
-- **Frontend:** Clear (✕) button inside search input to reset query
-- **Frontend:** Lazy timeline loading — only fetched when Timeline tab is opened
-- **Frontend:** Poster dominant colour displayed in the Details tab
-- **App.css v3:** Complete CSS rewrite — card bookmark button, mobile responsive, graph/vibe sections, panel animations
-- **Backend:** `CacheController` — admin endpoints `/api/admin/cache/stats` and `/api/admin/cache/clear`
-- **Backend:** `SearchResponseDTO` — strongly-typed search response model
-- **ML:** `schemas.py` — Pydantic models for `PosterAnalyzeRequest/Response` and `VibeDiscoverResponse`
-- **ML:** `cache.py` — thread-safe TTL `MLCache` singleton with eviction, clear, and size
-- **ML:** `logging_config.py` — centralised structured logging setup
-- **ML:** `test_cache_and_schemas.py` — 11 new unit tests for cache TTL and schema validation
-- **Docs:** `FAQ.md` — answers to 8 common user questions
+### Added (Day 4 — 2026-09-29)
+- **Frontend:** `api.js` — Unified API layer: calls TMDB + Jikan **directly from the browser**; backend is optional fallback. **Fixes search "not found" issue completely.**
+- **Frontend:** App.jsx v4 — trending movies on homepage, top airing anime, cast/trailer/episodes in detail panel, image error fallback
+- **Frontend:** App.css v4 — hero badge, setup hint box, navbar, slideIn panel animation, retry button, mobile responsive
+- **Frontend:** SearchBar v2 — disabled when empty, loading spinner in button, tabs
+- **Frontend:** WatchlistPage v2 — filter tabs with counts, clear all with confirmation, remove X button
+- **Frontend:** WatchlistContext v2 — `clearWatchlist()`, `getWatchlistByType()`, `savedAt` timestamp, v1→v2 migration
+- **Frontend:** Toast v2 — max 4 toasts, click to dismiss, `aria-live` region
+- **Frontend:** Skeleton v2 — section header skeleton, `SkeletonDetail`, `aria-busy`
+- **Frontend:** Footer v2 — tech stack as links, GitHub link, copyright year
+- **Frontend:** ErrorBoundary v2 — retry button, reload option, dev-only stack trace
+- **Frontend:** index.css v3 — shimmer/fadeUp/spin keyframes, scrollbar, `focus-visible`, selection
+- **Frontend:** vite.config.js v2 — dev proxy, vendor chunk split, chunk size warning
+- **Frontend:** `.env.example` updated — TMDB key instructions, backend marked optional
+- **Backend:** HealthController v2 — `/health/info` with heap MB, uptime, build version
+- **Backend:** RequestLoggingInterceptor v2 — status-based log levels, exception logging
+- **ML:** utils.py v2 — `hex_to_rgb`, `truncate`, `slugify`, `similarity_percent`, `is_valid_url`
+- **ML:** `test_utils.py` — 30+ unit tests for all utils functions
+- **ML:** `requirements.txt` — added Pillow, scikit-learn, numpy, httpx
+- **CI:** `ci.yml` — cleaner names, `continue-on-error` for Neo4j, `VITE_TMDB_API_KEY` secret
+- **Docs:** `README.md` rewrite — feature table, no-key quick start, architecture diagram
+- **Docs:** `DEPLOYMENT.md` — Vercel + Render step-by-step guides
 
-### Fixed (Day 2 — 2026-09-27)
-- **CI:** Replace `./mvnw` with system `mvn` — fixes `ClassNotFoundException: MavenWrapperMain`
-- **Backend:** Rename `WebConfig.java` → `WebMvcConfig.java` to match public class name
-- **Backend:** Add `spring-boot-starter-validation` to `pom.xml` for `jakarta.validation` support
-- **gitignore:** Un-ignore `maven-wrapper.jar` (commented out) to allow CI to use wrapper
-
-### Added (Day 2 — 2026-09-27)
-- **CI:** Fixed `ci.yml` — use `setup-java@v4`, `chmod +x mvnw`, `continue-on-error` for DB-dependent tests
-- **Frontend:** `index.css` v2 — skeleton shimmer, toast, scrollbar, utility classes, animations
-- **Frontend:** `Toast.jsx` — event-bus toast notification system
-- **Frontend:** `Skeleton.jsx` — SkeletonCard / SkeletonGrid / SkeletonDetail
-- **Frontend:** `SearchBar.jsx` — type filter tabs, keyboard shortcut, clear button, loading spinner
-- **Frontend:** `Navbar.jsx` — live API health dot, scroll-aware blur, GitHub link
-- **Frontend:** `Footer.jsx` — tech stack chips, external links
-- **Frontend:** `WatchlistContext.jsx` — global React Context + localStorage watchlist
-- **Frontend:** `WatchlistPage.jsx` — saved items grid with remove/clear
-- **Backend:** `WebMvcConfig.java` — CORS + interceptor registration via `WebMvcConfigurer`
-- **Backend:** Enhanced `HealthController` — `/api/health/info` with uptime, memory, JVM version
-- **Backend:** `CacheService.java` — thread-safe TTL in-memory cache
-- **Backend:** `ScheduledTaskService.java` — cache cleanup and heartbeat jobs
-- **ML:** `middleware.py` — ASGI request logging middleware
-- **ML:** `tests/test_ml.py` — 12 pytest unit tests
-- **Docker:** `docker-compose.yml` — healthchecks, restart policies, shared network
-
-### Added (Day 1 — 2026-09-25)
-- **Docs:** Rewrote `README.md` with badges, quick-start, API reference, benchmarks
-- **Docs:** Added `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`
-- **CI/CD:** Added `ci.yml` workflow (Backend / ML / Frontend) and `pr-checks.yml`
-- **Backend:** `GlobalExceptionHandler`, `ResourceNotFoundException`, `ExternalApiException`
-- **Backend:** `SearchRequestDTO`, `ApiResponse<T>` wrapper
-- **Backend:** `RequestLoggingInterceptor`
-- **Frontend:** `NotFound.jsx`, `ErrorBoundary.jsx`, `LoadingSpinner.jsx`, `hooks.js`
-- **ML:** Health endpoints `/health`, `/health/ready`; `config.py`, `exceptions.py`, `utils.py`
+### Fixed (Day 3 — 2026-09-28)
+- **CI:** `fix(ci)`: restore `getAnimeTimeline()` in JikanService
+- **CI:** `fix(ci)`: `TmdbTestController` updated to use `searchMovies()`
+- **Copilot fix:** Restored `SpoilerSafeResponse`, `CollectionResult`, `CastMember`, `getMovieById` nullable in TmdbService/JikanService
