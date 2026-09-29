@@ -1,105 +1,32 @@
 """
-CineVerse ML Service — Utility helpers shared across modules.
-
-Includes:
-- Image downloading and validation
-- Colour hex conversion
-- Safe JSON serialisation
-- Response timing decorator
+CineVerse ML — Utility functions v2.
 
 Added by: Koushik-31368
 """
 
-import time
-import functools
-import logging
-from typing import Optional, Tuple
-
-import httpx
-from PIL import Image
-import io
-
-logger = logging.getLogger(__name__)
+import re
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Image Utilities
-# ─────────────────────────────────────────────────────────────────────────────
-
-def download_image(url: str, timeout: float = 10.0) -> Optional[Image.Image]:
-    """
-    Download an image from a URL and return a PIL Image object.
-
-    Args:
-        url:     The image URL to download.
-        timeout: HTTP request timeout in seconds.
-
-    Returns:
-        PIL.Image.Image if successful, None if the download fails.
-    """
-    if not url or not url.startswith("http"):
-        logger.warning("download_image: invalid URL received: %s", url)
-        return None
-
-    try:
-        response = httpx.get(url, timeout=timeout, follow_redirects=True)
-        response.raise_for_status()
-        image = Image.open(io.BytesIO(response.content)).convert("RGB")
-        logger.debug("download_image: fetched %s (%d bytes)", url, len(response.content))
-        return image
-    except httpx.HTTPStatusError as e:
-        logger.error("download_image: HTTP %s for %s", e.response.status_code, url)
-    except httpx.RequestError as e:
-        logger.error("download_image: request error for %s — %s", url, e)
-    except Exception as e:
-        logger.error("download_image: unexpected error for %s — %s", url, e)
-    return None
-
-
-def rgb_to_hex(rgb: Tuple[int, int, int]) -> str:
-    """
-    Convert an (R, G, B) tuple to a hex colour string.
-
-    Args:
-        rgb: A tuple of three ints in range 0–255.
-
-    Returns:
-        Hex string, e.g. '#f72585'.
-    """
-    r, g, b = (max(0, min(255, int(c))) for c in rgb)
+def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+    """Convert an (R, G, B) tuple to a hex colour string."""
+    r, g, b = (clamp(int(c), 0, 255) for c in rgb)
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
-def clamp(value: float, min_val: float = 0.0, max_val: float = 1.0) -> float:
-    """Clamp a float value between min_val and max_val."""
-    return max(min_val, min(max_val, value))
+def hex_to_rgb(hex_str: str) -> tuple[int, int, int]:
+    """Convert a hex colour string to an (R, G, B) tuple."""
+    hex_str = hex_str.lstrip('#')
+    if len(hex_str) == 3:
+        hex_str = ''.join(c * 2 for c in hex_str)
+    if len(hex_str) != 6 or not re.fullmatch(r'[0-9a-fA-F]{6}', hex_str):
+        raise ValueError(f"Invalid hex colour: #{hex_str}")
+    return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Timing Decorator
-# ─────────────────────────────────────────────────────────────────────────────
+def clamp(value: int | float, lo: int | float, hi: int | float) -> int | float:
+    """Clamp a value between lo and hi (inclusive)."""
+    return max(lo, min(hi, value))
 
-def timed(func):
-    """
-    Decorator that logs the execution time of any function.
-
-    Usage:
-        @timed
-        def my_slow_function(): ...
-    """
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        elapsed = (time.perf_counter() - start) * 1000
-        logger.debug("%s completed in %.2f ms", func.__qualname__, elapsed)
-        return result
-    return wrapper
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Safe Serialisation
-# ─────────────────────────────────────────────────────────────────────────────
 
 def safe_float(value, default: float = 0.0) -> float:
     """Safely convert a value to float, returning default on failure."""
@@ -109,9 +36,26 @@ def safe_float(value, default: float = 0.0) -> float:
         return default
 
 
-def safe_int(value, default: int = 0) -> int:
-    """Safely convert a value to int, returning default on failure."""
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
+def truncate(text: str, max_len: int = 200, suffix: str = "…") -> str:
+    """Truncate a string to max_len characters, appending suffix if truncated."""
+    if not text or len(text) <= max_len:
+        return text
+    return text[:max_len - len(suffix)].rstrip() + suffix
+
+
+def slugify(text: str) -> str:
+    """Convert a string to a URL-safe slug."""
+    text = text.lower().strip()
+    text = re.sub(r'[^\w\s-]', '', text)
+    text = re.sub(r'[\s_-]+', '-', text)
+    return text.strip('-')
+
+
+def similarity_percent(score: float) -> int:
+    """Convert a 0.0–1.0 similarity score to a 0–100 percentage."""
+    return round(clamp(score, 0.0, 1.0) * 100)
+
+
+def is_valid_url(url: str) -> bool:
+    """Return True if the string looks like a valid HTTP/HTTPS URL."""
+    return bool(re.match(r'^https?://', url.strip()))
