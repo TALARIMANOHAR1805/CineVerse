@@ -1,13 +1,49 @@
+/**
+ * index.html v2 — CineVerse entry point with improved SEO.
+ *
+ * Changes:
+ *  - Added full meta tags (description, OG, Twitter card)
+ *  - Favicon emoji fallback
+ *  - Theme color meta
+ *  - Preconnect to TMDB + Google Fonts
+ */
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- SEO -->
-    <title>CineVerse — Should I Watch This?</title>
-    <meta name="description" content="CineVerse helps you decide what to watch next — spoiler-free summaries, timeline placement, and graph-based discovery for movies and anime." />
+    <title>CineVerse — Should I watch this?</title>
+    <meta name="description" content="Search any movie or anime. Get spoiler-free details, ratings, genres, cast, and watch-order timelines. Save your watchlist — no login needed." />
+    <meta name="keywords" content="movie search, anime search, watchlist, CineVerse, TMDB, Jikan, film, review" />
+    <meta name="author" content="CineVerse" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph (Facebook, LinkedIn) -->
+    <meta property="og:title" content="CineVerse — Should I watch this?" />
+    <meta property="og:description" content="Search movies and anime, save your watchlist, discover by vibe." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://cineverse-frontend.vercel.app" />
+    <meta property="og:image" content="https://cineverse-frontend.vercel.app/og-image.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CineVerse — Should I watch this?" />
+    <meta name="twitter:description" content="Search movies and anime, save your watchlist." />
+
+    <!-- Theme -->
+    <meta name="theme-color" content="#07070f" />
+
+    <!-- Favicon (emoji fallback) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+
+    <!-- Performance: preconnect -->
+    <link rel="preconnect" href="https://api.themoviedb.org" />
+    <link rel="preconnect" href="https://image.tmdb.org" />
+    <link rel="preconnect" href="https://api.jikan.moe" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>
   <body>
     <div id="root"></div>
