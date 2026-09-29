@@ -1,23 +1,24 @@
-# CineVerse ML Service — Python Dependencies
-# Phase 4: content-based recommendations + image analysis
+"""
+CineVerse ML — Updated requirements with all production dependencies.
 
-# Web framework
-fastapi==0.111.0
+Dependencies:
+  - fastapi       : Web framework
+  - uvicorn       : ASGI server
+  - httpx         : Async HTTP client for poster fetching
+  - Pillow        : PIL for image colour analysis
+  - pydantic      : Data validation
+  - python-dotenv : .env loading
+  - scikit-learn  : TF-IDF for ML recommendations (optional, future use)
 
-# ASGI server
-uvicorn[standard]==0.30.1
-
-# HTTP client (calls TMDB, Jikan, Spring Boot backend)
-httpx==0.27.0
-
-# Environment variable loading
-python-dotenv==1.0.1
-
-# Phase 4 — ML
-scikit-learn==1.5.2       # TF-IDF, cosine similarity
-numpy==1.26.4             # numerical ops
-pydantic==2.9.2           # data models (included with FastAPI but pinned)
-
-# Phase 4 — Image analysis
-Pillow==10.4.0            # poster image processing
-colorthief==0.2.1         # extract dominant colors from posters
+Added by: Koushik-31368
+"""
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+httpx>=0.27.0
+Pillow>=10.0.0
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+python-dotenv>=1.0.0
+scikit-learn>=1.5.0
+numpy>=1.26.0
+requests>=2.32.0
