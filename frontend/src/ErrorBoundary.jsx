@@ -1,117 +1,78 @@
+/**
+ * ErrorBoundary.jsx v2 — React error boundary with retry.
+ *
+ * Catches render errors and shows a friendly UI with:
+ *  - Error message
+ *  - Retry button (resets state)
+ *  - Reload page option
+ *
+ * Author: Koushik-31368
+ */
 import { Component } from 'react';
 
-/**
- * ErrorBoundary component - Catches JavaScript errors anywhere in the
- * child component tree and displays a fallback UI instead of crashing.
- *
- * Usage:
- *   <ErrorBoundary>
- *     <YourComponent />
- *   ErrorBoundary>
- */
-class ErrorBoundary extends Component {
+export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error, errorInfo) {
-    console.error('CineVerse ErrorBoundary caught an error:', error, errorInfo);
-    this.setState({ errorInfo });
+  componentDidCatch(error, info) {
+    console.error('[CineVerse] Render error:', error, info);
   }
 
-  handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
   };
 
   render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '60vh',
-          padding: '2rem',
-          textAlign: 'center',
-          background: 'rgba(15, 12, 41, 0.95)',
-          borderRadius: '16px',
-          margin: '2rem auto',
-          maxWidth: '600px',
-          color: '#fff',
-          fontFamily: "'Inter', sans-serif",
-          border: '1px solid rgba(247, 37, 133, 0.3)',
-        }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎭</div>
-          <h2 style={{
-            fontSize: '1.5rem',
-            fontWeight: '700',
-            color: '#f72585',
-            marginBottom: '0.5rem',
-          }}>
-            Something went wrong
-          </h2>
-          <p style={{
-            color: '#a0a0c0',
-            fontSize: '0.95rem',
-            marginBottom: '1.5rem',
-            lineHeight: 1.6,
-          }}>
-            An unexpected error occurred in this scene. Our crew is on it.
-          </p>
+    if (!this.state.hasError) return this.props.children;
 
-          {import.meta.env.DEV && this.state.error && (
-            <details style={{
-              background: 'rgba(255,255,255,0.05)',
-              padding: '1rem',
-              borderRadius: '8px',
-              marginBottom: '1.5rem',
-              textAlign: 'left',
-              width: '100%',
-              fontSize: '0.8rem',
-              color: '#ff6b6b',
-              overflowX: 'auto',
-            }}>
-              <summary style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
-                Error Details (dev only)
-              </summary>
-              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {this.state.error?.toString()}
-                {'\n\n'}
-                {this.state.errorInfo?.componentStack}
-              </pre>
-            </details>
-          )}
-
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '2rem', textAlign: 'center', background: 'var(--bg)', gap: '1.25rem',
+      }}>
+        <span style={{ fontSize: '3.5rem' }}>💥</span>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Something went wrong</h1>
+        <p style={{ color: 'var(--text-2)', fontSize: '0.9rem', maxWidth: 380 }}>
+          {this.state.error?.message || 'An unexpected error occurred in CineVerse.'}
+        </p>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
           <button
-            onClick={this.handleReset}
+            onClick={this.handleRetry}
             style={{
-              padding: '0.65rem 1.75rem',
-              background: 'linear-gradient(90deg, #f72585, #7209b7)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '50px',
-              fontWeight: '600',
-              fontSize: '0.95rem',
-              cursor: 'pointer',
-              transition: 'transform 0.2s ease',
+              padding: '0.55rem 1.5rem',
+              background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+              border: 'none', borderRadius: '999px', color: '#fff',
+              fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
             }}
-            onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
-            onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-          >
-            🔄 Try Again
-          </button>
+          >↩ Try Again</button>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '0.55rem 1.5rem',
+              background: 'transparent', border: '1px solid var(--border)',
+              borderRadius: '999px', color: 'var(--text-2)',
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >🔄 Reload Page</button>
         </div>
-      );
-    }
-
-    return this.props.children;
+        {import.meta.env.DEV && (
+          <pre style={{
+            marginTop: '1rem', padding: '0.75rem 1rem',
+            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+            borderRadius: 8, fontSize: '0.72rem', color: '#ef4444',
+            maxWidth: 480, textAlign: 'left', overflowX: 'auto', whiteSpace: 'pre-wrap',
+          }}>
+            {this.state.error?.stack}
+          </pre>
+        )}
+      </div>
+    );
   }
 }
-
-export default ErrorBoundary;

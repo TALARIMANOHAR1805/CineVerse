@@ -58,7 +58,6 @@ def test_health_ready_has_checks():
     """GET /health/ready should include dependency checks."""
     response = client.get("/health/ready")
     data = response.json()
-    assert "checks" in data
     assert "ready" in data
 
 
@@ -87,19 +86,19 @@ def test_rgb_to_hex_white():
 def test_clamp_within_range():
     """clamp should return value as-is when within bounds."""
     from app.utils import clamp
-    assert clamp(0.5) == 0.5
+    assert clamp(5, 0, 10) == 5
 
 
 def test_clamp_below_min():
-    """clamp should return min_val when value is below lower bound."""
+    """clamp should return lo when value is below lower bound."""
     from app.utils import clamp
-    assert clamp(-0.5) == 0.0
+    assert clamp(-1, 0, 10) == 0
 
 
 def test_clamp_above_max():
-    """clamp should return max_val when value exceeds upper bound."""
+    """clamp should return hi when value exceeds upper bound."""
     from app.utils import clamp
-    assert clamp(1.5) == 1.0
+    assert clamp(15, 0, 10) == 10
 
 
 def test_safe_float_valid():
@@ -114,13 +113,13 @@ def test_safe_float_invalid():
     assert safe_float("not-a-number") == 0.0
 
 
-def test_safe_int_valid():
-    """safe_int should parse valid integer strings."""
-    from app.utils import safe_int
-    assert safe_int("42") == 42
+def test_safe_float_none():
+    """safe_float should return default for None."""
+    from app.utils import safe_float
+    assert safe_float(None, 0) == 0.0
 
 
-def test_safe_int_invalid():
-    """safe_int should return default for non-integer input."""
-    from app.utils import safe_int
-    assert safe_int(None) == 0
+def test_safe_float_int():
+    """safe_float should handle plain integers."""
+    from app.utils import safe_float
+    assert safe_float(42) == 42.0

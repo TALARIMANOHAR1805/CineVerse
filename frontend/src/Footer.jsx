@@ -1,93 +1,71 @@
 /**
- * Footer component — CineVerse site footer.
- * Shows tech stack, links, and attribution.
+ * Footer.jsx v2 — Enhanced CineVerse footer.
+ *
+ * Shows: tech stack pills, links, and a status indicator.
+ *
+ * Author: Koushik-31368
  */
+
+const TECH = [
+  { label: 'React 18', url: 'https://react.dev' },
+  { label: 'Vite',     url: 'https://vitejs.dev' },
+  { label: 'TMDB',     url: 'https://www.themoviedb.org' },
+  { label: 'Jikan',    url: 'https://jikan.moe' },
+  { label: 'Spring Boot', url: 'https://spring.io/projects/spring-boot' },
+  { label: 'FastAPI',  url: 'https://fastapi.tiangolo.com' },
+  { label: 'Neo4j',    url: 'https://neo4j.com' },
+];
+
 export default function Footer() {
-  const year = new Date().getFullYear();
-
-  const techStack = [
-    { label: 'React + Vite', color: '#61dafb' },
-    { label: 'Spring Boot', color: '#6db33f' },
-    { label: 'FastAPI', color: '#009688' },
-    { label: 'Neo4j', color: '#4581c3' },
-  ];
-
-  const links = [
-    { label: 'GitHub', href: 'https://github.com/TALARIMANOHAR1805/CineVerse' },
-    { label: 'TMDB', href: 'https://www.themoviedb.org/' },
-    { label: 'Jikan API', href: 'https://jikan.moe/' },
-  ];
-
   return (
-    <footer
-      role="contentinfo"
-      style={{
-        marginTop: 'auto',
-        padding: '2.5rem 2rem',
-        background: 'var(--surface)',
-        borderTop: '1px solid var(--border)',
-        textAlign: 'center',
-      }}
-    >
-      {/* Logo */}
-      <p style={{
-        fontSize: '1.2rem',
-        fontWeight: '800',
-        background: 'linear-gradient(135deg, #fff 30%, var(--accent))',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-        marginBottom: '0.75rem',
-      }}>
-        🎬 CineVerse
-      </p>
-
-      {/* Tagline */}
-      <p style={{ color: 'var(--text-3)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-        Your pre-watch decision tool for movies & anime
-      </p>
-
-      {/* Tech stack chips */}
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
-        {techStack.map(t => (
-          <span key={t.label} style={{
-            padding: '0.2rem 0.65rem',
-            border: `1px solid ${t.color}40`,
-            borderRadius: '999px',
-            fontSize: '0.72rem',
-            color: t.color,
-            background: `${t.color}10`,
-          }}>
-            {t.label}
-          </span>
-        ))}
-      </div>
-
-      {/* Links */}
-      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginBottom: '1.5rem' }}>
-        {links.map(l => (
+    <footer style={{
+      borderTop: '1px solid var(--border)',
+      padding: '2rem 1.5rem',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      gap: '1rem', textAlign: 'center',
+    }}>
+      {/* Tech stack */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', justifyContent: 'center' }}>
+        {TECH.map(t => (
           <a
-            key={l.label}
-            href={l.href}
+            key={t.label}
+            href={t.url}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noreferrer"
             style={{
-              color: 'var(--text-3)',
-              fontSize: '0.82rem',
-              transition: 'color var(--transition)',
+              fontSize: '0.72rem', padding: '0.2rem 0.6rem',
+              background: 'var(--surface-2)', border: '1px solid var(--border)',
+              borderRadius: '999px', color: 'var(--text-3)',
+              textDecoration: 'none', transition: 'color 0.2s, border-color 0.2s',
             }}
-            onMouseOver={e => e.currentTarget.style.color = 'var(--accent)'}
-            onMouseOut={e => e.currentTarget.style.color = 'var(--text-3)'}
+            onMouseOver={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'rgba(124,111,255,0.4)'; }}
+            onMouseOut={e => { e.currentTarget.style.color = 'var(--text-3)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
           >
-            {l.label}
+            {t.label}
           </a>
         ))}
       </div>
 
-      {/* Copyright */}
-      <p style={{ color: 'var(--text-3)', fontSize: '0.75rem' }}>
-        © {year} CineVerse · Built with ❤️ · Data from TMDB & MyAnimeList
-      </p>
+      {/* Bottom line */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>
+          🎬 CineVerse © {new Date().getFullYear()}
+        </span>
+        <span style={{ color: 'var(--border)' }}>·</span>
+        <a
+          href="https://github.com/TALARIMANOHAR1805/CineVerse"
+          target="_blank" rel="noreferrer"
+          style={{ fontSize: '0.8rem', color: 'var(--text-3)', textDecoration: 'none' }}
+          onMouseOver={e => e.currentTarget.style.color = 'var(--text)'}
+          onMouseOut={e => e.currentTarget.style.color = 'var(--text-3)'}
+        >
+          ⭐ GitHub
+        </a>
+        <span style={{ color: 'var(--border)' }}>·</span>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>
+          Movie data from TMDB · Anime from Jikan
+        </span>
+      </div>
     </footer>
   );
 }

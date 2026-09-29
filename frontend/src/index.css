@@ -1,6 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   CineVerse — index.css  (Global Design System v2)
-   Enhanced with: dark mode vars, scrollbar, skeleton, toast
+   index.css v3 — CineVerse Global Design System (Day 4)
    ═══════════════════════════════════════════════════════════ */
 
 /* ── Google Fonts ─────────────────────────────────────────── */
@@ -35,147 +34,54 @@
 
 /* ── Reset ───────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
-a { color: inherit; text-decoration: none; }
-button { font-family: inherit; cursor: pointer; }
-img { display: block; }
+img { display: block; max-width: 100%; }
+button { font-family: inherit; }
+a { color: inherit; }
 
-/* ── Custom Scrollbar ─────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; }
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
-  border-radius: var(--radius-pill);
-}
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
 
-/* ── Animations ──────────────────────────────────────────── */
+/* ── Selection ────────────────────────────────────────────── */
+::selection { background: rgba(124,111,255,0.3); color: var(--text); }
+
+/* ── Shimmer Animation (for Skeleton) ─────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Utility: fadeUp ─────────────────────────────────────── */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 6px #22c55e; }
-  50%       { opacity: 0.5; box-shadow: 0 0 12px #22c55e; }
-}
-
+/* ── Utility: spin ───────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-@keyframes shimmer {
-  from { background-position: -600px 0; }
-  to   { background-position: 600px 0; }
+/* ── Focus visible (keyboard accessibility) ──────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(100%); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes bounceIn {
-  0%   { transform: scale(0.8); opacity: 0; }
-  60%  { transform: scale(1.05); }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-/* ── Skeleton Loader ─────────────────────────────────────── */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--surface-2) 25%,
-    var(--surface-3) 50%,
-    var(--surface-2) 75%
-  );
-  background-size: 600px 100%;
-  animation: shimmer 1.4s infinite linear;
-  border-radius: var(--radius-sm);
-}
-
-/* ── Toast Notification ──────────────────────────────────── */
-.toast-container {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.toast {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1.25rem;
-  background: var(--surface-2);
-  border: 1px solid var(--border-hover);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  animation: slideIn 0.3s ease;
-  font-size: 0.9rem;
-  min-width: 240px;
-  max-width: 360px;
-}
-
-.toast--success { border-left: 3px solid var(--success); }
-.toast--error   { border-left: 3px solid var(--error); }
-.toast--info    { border-left: 3px solid var(--accent); }
-
-/* ── Utility Classes ─────────────────────────────────────── */
-.sr-only {
-  position: absolute;
-  width: 1px; height: 1px;
-  padding: 0; margin: -1px;
-  overflow: hidden;
-  clip: rect(0,0,0,0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.text-gradient {
-  background: linear-gradient(135deg, #ffffff 40%, var(--accent) 75%, var(--accent-2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.2rem 0.6rem;
-  border-radius: var(--radius-pill);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.badge--accent {
-  color: var(--accent);
-  background: rgba(124,111,255,0.12);
-  border: 1px solid rgba(124,111,255,0.3);
-}
-
-.badge--success {
-  color: var(--success);
-  background: rgba(34,197,94,0.1);
-  border: 1px solid rgba(34,197,94,0.3);
-}
+/* ── Prose helper ────────────────────────────────────────── */
+.prose p { line-height: 1.7; color: var(--text-2); }

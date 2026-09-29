@@ -6,66 +6,45 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.ModelAndView;
 
 /**
- * RequestLoggingInterceptor — Logs incoming requests and outgoing responses
- * with timing information for performance monitoring.
+ * RequestLoggingInterceptor v2 — Logs every API request with timing.
  *
- * Logs format:
- *   --> GET /api/search?q=inception
- *   <-- 200 GET /api/search?q=inception [42ms]
+ * Log format:
+ *   [REQ] GET /api/search?q=inception → 200 OK [42ms]
  *
- * Added by: Koushik-31368
+ * Improved by: Koushik-31368
  */
 @Component
 public class RequestLoggingInterceptor implements HandlerInterceptor {
 
-    private static final Logger log = LoggerFactory.getLogger(RequestLoggingInterceptor.class);
-    private static final String START_TIME_ATTR = "cv_request_start";
+    private static final Logger log = LoggerFactory.getLogger("cineverse.access");
+    private static final String ATTR_START = "req_start_ms";
 
     @Override
-    public boolean preHandle(HttpServletRequest request,
-                             HttpServletResponse response,
-                             Object handler) {
-        request.setAttribute(START_TIME_ATTR, System.currentTimeMillis());
-
-        if (log.isDebugEnabled()) {
-            String queryString = request.getQueryString();
-            String uri = request.getRequestURI()
-                    + (queryString != null ? "?" + queryString : "");
-            log.debug("--> {} {}", request.getMethod(), uri);
-        }
+    public boolean preHandle(HttpServletRequest req, HttpServletResponse res, Object handler) {
+        req.setAttribute(ATTR_START, System.currentTimeMillis());
         return true;
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request,
-                                HttpServletResponse response,
-                                Object handler,
-                                Exception ex) {
-        if (!log.isInfoEnabled()) return;
+    public void afterCompletion(HttpServletRequest req, HttpServletResponse res, Object handler, Exception ex) {
+        long start   = (Long) req.getAttribute(ATTR_START);
+        long elapsed = System.currentTimeMillis() - start;
+        int  status  = res.getStatus();
+        String method = req.getMethod();
+        String uri    = req.getRequestURI();
+        String query  = req.getQueryString();
 
-        Long startTime = (Long) request.getAttribute(START_TIME_ATTR);
-        long elapsed   = startTime != null ? System.currentTimeMillis() - startTime : -1;
+        String fullUri = query != null ? uri + "?" + query : uri;
 
-        String queryString = request.getQueryString();
-        String uri = request.getRequestURI()
-                + (queryString != null ? "?" + queryString : "");
-
-        if (ex != null || response.getStatus() >= 400) {
-            log.warn("<-- {} {} {} [{}ms] {}",
-                    response.getStatus(),
-                    request.getMethod(),
-                    uri,
-                    elapsed,
-                    ex != null ? "| ERROR: " + ex.getMessage() : "");
+        if (ex != null || status >= 500) {
+            log.error("[REQ] {} {} → {} [{}ms] exception={}", method, fullUri, status, elapsed,
+                ex != null ? ex.getMessage() : "none");
+        } else if (status >= 400) {
+            log.warn("[REQ] {} {} → {} [{}ms]", method, fullUri, status, elapsed);
         } else {
-            log.info("<-- {} {} {} [{}ms]",
-                    response.getStatus(),
-                    request.getMethod(),
-                    uri,
-                    elapsed);
+            log.info("[REQ] {} {} → {} [{}ms]", method, fullUri, status, elapsed);
         }
     }
 }
