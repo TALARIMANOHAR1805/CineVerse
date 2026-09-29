@@ -1,211 +1,112 @@
-# CineVerse 🎬
+## CineVerse — Updated README
 
-> **Pre-watch decision tool for movies & anime** — Search a title, get a spoiler-free "should I watch this" summary, timeline placement, graph-based discovery, and aesthetic vibe matching.
+<div align="center">
 
-![Build Status](https://github.com/TALARIMANOHAR1805/CineVerse/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3-green?logo=springboot)
-![React](https://img.shields.io/badge/React-Vite-61DAFB?logo=react)
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
-![Neo4j](https://img.shields.io/badge/Neo4j-AuraDB-008CC1?logo=neo4j)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)
+# 🎬 CineVerse
 
----
+**Should I watch this?**  
+Search any movie or anime. Get spoiler-free details, timeline placement, ML recommendations.
 
-## Architecture
+[![CI](https://github.com/TALARIMANOHAR1805/CineVerse/actions/workflows/ci.yml/badge.svg)](https://github.com/TALARIMANOHAR1805/CineVerse/actions/workflows/ci.yml)
+[![Frontend](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react)](https://react.dev)
+[![Backend](https://img.shields.io/badge/Backend-Spring%20Boot%203-6DB33F?logo=spring)](https://spring.io)
+[![ML](https://img.shields.io/badge/ML-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
+[![License](https://img.shields.io/badge/License-MIT-purple)](LICENSE)
 
-```text
-CineVerse/
-├── backend/      ← Spring Boot 3.3 (Java 21, Maven) — Core API, Neo4j AuraDB integration
-├── ml/           ← FastAPI (Python 3.11) — Vibe Match / Poster Analysis API
-├── frontend/     ← Vite + React — UI, CSS animations, accessible routing
-└── docker-compose.yml
-```
+</div>
 
 ---
 
-## Features & Implementation Status
+## ✨ Features
 
-All features below have been fully implemented, tested, and verified to be working end-to-end via real `curl` requests and automated Java unit/load tests.
-
-### 1. Search (Movies + Anime)
-- **Status:** ✅ Verified
-- Searches both TMDB (Movies) and Jikan (Anime).
-- **Performance:** Averages **~0.023s** per request under load testing (Target NFR was <1s).
-
-### 2. Before You Watch (Timeline Placement)
-- **Status:** ✅ Verified
-- Dynamically generates the prequel/sequel relations (Anime) and Collection timelines (Movies).
-- Built defensively to dynamically limit traversal depth and prevent infinite loops from circular API references.
-
-### 3. Six-Degrees Pathfinding (Graph Query)
-- **Status:** ✅ Verified
-- Uses Neo4j `shortestPath()` algorithms to map connections between movies.
-- Traverses dynamically populated relationships: `[:ACTED_IN]` (shared cast members) and `[:PART_OF]` (franchise siblings).
-- **Performance:** Averages **~0.009s** per graph query under load testing (Target NFR was <2s).
-
-### 4. Spoiler-Shield Toggle
-- **Status:** ✅ Verified
-- Takes a user's current episode progress and evaluates it against the total episodes. If the user hasn't finished the series, the API completely suppresses the synopsis.
-
-### 5. Reverse-Recommendation Watch Paths
-- **Status:** ✅ Verified
-- Generates a watch path for any given franchise.
-- **Limitation:** Operates strictly in **Release Order** (sorted by year).
-
-### 6. Vibe Match
-- **Status:** ✅ Verified
-- ML-powered aesthetic matching using poster colour analysis (FastAPI + scikit-learn).
+| Feature | Description |
+|---------|-------------|
+| 🔍 **Movie Search** | Search via TMDB API — title, year, rating, genres, cast |
+| 🎌 **Anime Search** | Search via Jikan (MyAnimeList) — no API key needed |
+| 🔥 **Trending** | Trending movies this week from TMDB |
+| 🌸 **Top Anime** | Currently airing anime from Jikan |
+| 📅 **Timeline** | Watch-order placement (backend + Neo4j) |
+| 🔖 **Watchlist** | Save items to browser localStorage — no login needed |
+| 🤖 **ML Recs** | TF-IDF similarity recommendations (FastAPI) |
+| 🎨 **Vibe Match** | Aesthetic colour-based discovery |
+| 📡 **Health API** | Liveness, readiness, runtime info endpoints |
 
 ---
 
-## Quick Start
+## 🚀 Quick Start (Local)
 
-### Prerequisites
-- **Java 21** — [Download](https://adoptium.net/)
-- **Python 3.11** — [Download](https://www.python.org/)
-- **Node.js 18+** — [Download](https://nodejs.org/)
-- **Docker & Docker Compose** — [Download](https://www.docker.com/)
-- **Neo4j AuraDB** account — [Free tier](https://console.neo4j.io/)
-- **TMDB API Key** — [Get one free](https://www.themoviedb.org/settings/api)
+### Anime Search works instantly — no setup needed!
 
-### Run with Docker (Recommended)
 ```bash
-# 1. Clone
 git clone https://github.com/TALARIMANOHAR1805/CineVerse.git
-cd CineVerse
-
-# 2. Set up environment variables
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-cp ml/.env.example ml/.env
-# Edit each .env file with your API keys
-
-# 3. Start all services
-docker-compose up --build
-```
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:5173 |
-| Backend API | http://localhost:8080 |
-| ML Service | http://localhost:8001 |
-| API Docs (Swagger) | http://localhost:8080/swagger-ui.html |
-| ML Docs | http://localhost:8001/docs |
-
-### Run Manually
-
-#### Backend
-```bash
-cd backend
-cp .env.example .env   # fill in TMDB_API_KEY, NEO4J_* values
-./mvnw spring-boot:run
-```
-
-#### ML Service
-```bash
-cd ml
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8001
-```
-
-#### Frontend
-```bash
-cd frontend
+cd CineVerse/frontend
 npm install
+
+# Copy env file and add your TMDB key for movie search
 cp .env.example .env
+# Edit .env → add VITE_TMDB_API_KEY=your_key
+
 npm run dev
+# → http://localhost:5173
+```
+
+> Get a **free TMDB API key** at [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)
+
+### Full stack with Docker
+
+```bash
+docker compose up --build
 ```
 
 ---
 
-## API Reference
+## 🏗 Architecture
 
-### Backend (Spring Boot — port 8080)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/search?q={title}` | Search movies & anime |
-| `GET` | `/api/timeline/{id}?type=movie` | Timeline placement |
-| `GET` | `/api/graph/path?from={id}&to={id}` | Six-degrees pathfinding |
-| `GET` | `/api/franchise/{id}/watchpath` | Franchise watch order |
-| `POST` | `/api/spoiler-shield` | Spoiler shield check |
-| `GET` | `/actuator/health` | Backend health check |
-
-### ML Service (FastAPI — port 8001)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/vibe-match` | Vibe matching via poster analysis |
-| `GET` | `/health` | ML service liveness probe |
-| `GET` | `/health/ready` | ML service readiness probe |
-| `GET` | `/docs` | Interactive Swagger UI |
+```
+Browser (React + Vite)
+       │
+       ├── TMDB API (direct)    ─── Movie search, trending
+       ├── Jikan API (direct)   ─── Anime search, top anime
+       │
+       └── Spring Boot Backend (optional)
+                 │
+                 ├── Neo4j AuraDB   ─── Timeline/graph
+                 └── FastAPI ML     ─── Recommendations, vibe
+```
 
 ---
 
-## Performance Benchmarks
+## 📁 Project Structure
 
-| Feature | Avg Response Time | Target NFR |
-|---------|-------------------|------------|
-| Search (TMDB + Jikan) | ~0.023s | < 1s ✅ |
-| Graph Pathfinding | ~0.009s | < 2s ✅ |
-| Vibe Match | ~0.4s | < 2s ✅ |
-
----
-
-## Project Structure
-
-```text
+```
 CineVerse/
-├── .github/
-│   └── workflows/
-│       ├── ci.yml              ← Build, test, lint all services
-│       └── pr-checks.yml       ← PR title validation + size labelling
-├── backend/
-│   └── src/main/java/com/cineverse/
-│       ├── controller/         ← REST controllers (Search, Graph, Timeline, etc.)
-│       ├── service/            ← Business logic (TmdbService, JikanService, GraphService)
-│       ├── model/              ← Neo4j domain models (Movie, Person, Franchise)
-│       ├── repository/         ← Spring Data Neo4j repositories
-│       ├── dto/                ← Request/Response DTOs with validation
-│       ├── exception/          ← Custom exceptions + GlobalExceptionHandler
-│       ├── interceptor/        ← Request logging interceptor
-│       └── config/             ← CORS, WebClient configuration
-├── ml/
-│   └── app/
-│       ├── main.py             ← FastAPI app entry point
-│       ├── recommend.py        ← Recommendation engine
-│       ├── tone.py             ← Tone/mood extraction
-│       ├── poster.py           ← Poster colour analysis
-│       ├── health.py           ← Health check endpoints
-│       ├── exceptions.py       ← Custom FastAPI exceptions
-│       ├── config.py           ← Pydantic settings management
-│       └── utils.py            ← Shared utility helpers
-├── frontend/
-│   └── src/
-│       ├── App.jsx             ← Main application
-│       ├── ErrorBoundary.jsx   ← React error boundary
-│       ├── LoadingSpinner.jsx  ← Reusable loading component
-│       ├── NotFound.jsx        ← 404 page
-│       └── hooks.js            ← Custom React hooks
-├── CONTRIBUTING.md
-├── SECURITY.md
-├── CHANGELOG.md
+├── frontend/     React 18 + Vite (deployed on Vercel)
+├── backend/      Spring Boot 3 + Java 21 (Render)
+├── ml/           FastAPI + Python 3.11 (Render)
+├── .github/      CI/CD workflows
 └── docker-compose.yml
 ```
 
 ---
 
-## Contributing
+## 📖 Documentation
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to contribute, branch naming, commit message format, and the PR process.
+| Doc | Description |
+|-----|-------------|
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Vercel + Render deploy guide |
+| [LOCAL_DEV.md](LOCAL_DEV.md)   | Local setup instructions |
+| [API_REFERENCE.md](API_REFERENCE.md) | API endpoint docs |
+| [ARCHITECTURE.md](ARCHITECTURE.md)  | System design |
+| [FAQ.md](FAQ.md)               | Common questions |
+| [CHANGELOG.md](CHANGELOG.md)   | Version history |
 
-## Security
+---
 
-See [SECURITY.md](./SECURITY.md) for how to report vulnerabilities responsibly.
+## 👥 Contributors
 
-## License
+- **TALARIMANOHAR1805** — Project owner
+- **Koushik-31368** — Full-stack improvements, CI/CD, ML pipeline
 
-This project is licensed under the MIT License.
+---
+
+*Movie data from [TMDB](https://www.themoviedb.org) · Anime from [Jikan](https://jikan.moe)*
