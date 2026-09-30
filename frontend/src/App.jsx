@@ -1,13 +1,11 @@
 /**
- * App.jsx — CineVerse v4 (Day 4 — Fully Working Search)
- * - Calls TMDB + Jikan directly from browser (no backend required)
- * - Trending movies + top anime on homepage
- * - Full watchlist, toast, skeleton, detail panel
+ * App.jsx — CineVerse v5 (Day 5 — Discover, Similar, Watch Where, Mark Watched)
  * Author: Koushik-31368
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import './index.css';
 import './App.css';
+import './App.day5.css';
 import {
   search, fetchTrendingMovies, fetchTopAnime,
   fetchMovieDetails, fetchAnimeDetails, fetchTimeline,
