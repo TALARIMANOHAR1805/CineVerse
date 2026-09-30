@@ -65,8 +65,6 @@ export default function Footer() {
             </span>
           ))}
         </div>
-      </div>
-
       {/* Bottom line */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>
@@ -90,4 +88,3 @@ export default function Footer() {
     </footer>
   );
 }
-

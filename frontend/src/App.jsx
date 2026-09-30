@@ -425,6 +425,7 @@ function DetailPanel({ item: baseItem, onClose }) {
 
       </div>
     </div>
+  </div>
   );
 }
 
