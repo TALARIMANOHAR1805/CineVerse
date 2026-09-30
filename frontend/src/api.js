@@ -172,11 +172,11 @@ export async function fetchMovieDetails(tmdbId, signal) {
     const m   = await fetchJson(url, signal);
     return {
       ...tmdbToMedia(m),
-      cast: (m.credits?.cast || []).slice(0, 10).map(c => c.name),
-      budget:   m.budget,
-      revenue:  m.revenue,
-      runtime:  m.runtime,
-      tagline:  m.tagline,
+      cast:    (m.credits?.cast || []).slice(0, 10).map(c => c.name),
+      budget:  m.budget,
+      revenue: m.revenue,
+      runtime: m.runtime,
+      tagline: m.tagline,
     };
   } catch { return null; }
 }
@@ -190,13 +190,48 @@ export async function fetchAnimeDetails(malId, signal) {
     if (!a) return null;
     return {
       ...jikanToMedia(a),
-      episodes: a.episodes,
-      status:   a.status,
-      studios:  (a.studios || []).map(s => s.name),
-      trailer:  a.trailer?.url || null,
+      episodes:     a.episodes,
+      status:       a.status,
+      studios:      (a.studios || []).map(s => s.name),
+      trailer:      a.trailer?.url || null,
+      openingTheme: (a.theme?.openings || [])[0] || null,
     };
+  } catch { return null; }
+}
+
+// ── Similar Movies (TMDB /similar) ───────────────────────────
+export async function fetchSimilarMovies(tmdbId, signal) {
+  if (!TMDB_KEY) return [];
+  try {
+    const url  = `${TMDB_BASE}/movie/${tmdbId}/similar?api_key=${TMDB_KEY}&page=1`;
+    const json = await fetchJson(url, signal);
+    return (json.results || []).slice(0, 12).map(tmdbToMedia);
+  } catch { return []; }
+}
+
+// ── Similar Anime (Jikan recommendations) ────────────────────
+export async function fetchSimilarAnime(malId, signal) {
+  try {
+    const url  = `${JIKAN}/anime/${malId}/recommendations`;
+    const json = await fetchJson(url, signal);
+    return (json.data || []).slice(0, 12).map(r => jikanToMedia(r.entry));
+  } catch { return []; }
+}
+
+// ── Watch Providers (TMDB JustWatch data) ────────────────────
+export async function fetchWatchProviders(tmdbId, region = 'IN', signal) {
+  if (!TMDB_KEY) return null;
+  try {
+    const url  = `${TMDB_BASE}/movie/${tmdbId}/watch/providers?api_key=${TMDB_KEY}`;
+    const json = await fetchJson(url, signal);
+    const data = json.results?.[region] || json.results?.US || null;
+    if (!data) return null;
+    const LOGO = 'https://image.tmdb.org/t/p/original';
+    const mapP = (arr = []) => arr.map(p => ({ id: p.provider_id, name: p.provider_name, logo: `${LOGO}${p.logo_path}` }));
+    return { link: data.link, flatrate: mapP(data.flatrate), rent: mapP(data.rent), buy: mapP(data.buy) };
   } catch { return null; }
 }
 
 export const hasTmdbKey = () => Boolean(TMDB_KEY);
 export const hasBackend  = () => Boolean(BACKEND);
+
