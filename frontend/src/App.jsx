@@ -346,7 +346,7 @@ function DetailPanel({ item: baseItem, onClose }) {
                   <div className="results-grid" style={{ padding:'0 1rem' }}>
                     {similar.map((s, i) => (
                       <div key={`${s.id}-${i}`} className="card"
-                        onClick={() => { /* open detail */ }}
+                        onClick={() => {}}
                         style={{ cursor:'default', opacity:0.92 }}>
                         {s.posterUrl
                           ? <img className="card__poster" src={s.posterUrl} alt={s.title} loading="lazy" />
@@ -395,13 +395,17 @@ function DetailPanel({ item: baseItem, onClose }) {
                         border:'1px solid rgba(124,111,255,0.3)', textDecoration:'none',
                       }}>View on JustWatch →</a>
                   )}
-                  {[['Stream', providers.flatrate], ['Rent', providers.rent], ['Buy', providers.buy]]
-                    .filter(([, arr]) => arr?.length > 0)
-                    .map(([label, arr]) => (
-                      <div key={label} style={{ marginBottom:'1.25rem' }}>
-                        <p style={{ fontSize:'0.75rem', color:'var(--text-3)', marginBottom:'0.5rem', textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</p>
+                  {[
+                    { label: 'Stream', arr: providers.flatrate },
+                    { label: 'Rent',   arr: providers.rent },
+                    { label: 'Buy',    arr: providers.buy },
+                  ]
+                    .filter(item => item.arr?.length > 0)
+                    .map(item => (
+                      <div key={item.label} style={{ marginBottom:'1.25rem' }}>
+                        <p style={{ fontSize:'0.75rem', color:'var(--text-3)', marginBottom:'0.5rem', textTransform:'uppercase', letterSpacing:'0.05em' }}>{item.label}</p>
                         <div style={{ display:'flex', flexWrap:'wrap', gap:'0.6rem' }}>
-                          {arr.map(p => (
+                          {item.arr.map(p => (
                             <div key={p.id} title={p.name}
                               style={{
                                 display:'flex', flexDirection:'column', alignItems:'center', gap:'0.25rem',
@@ -423,9 +427,9 @@ function DetailPanel({ item: baseItem, onClose }) {
             </div>
           )}
 
+        </div>
       </div>
     </div>
-  </div>
   );
 }
 

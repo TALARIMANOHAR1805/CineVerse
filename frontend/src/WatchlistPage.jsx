@@ -176,74 +176,87 @@ export default function WatchlistPage({ onCardClick }) {
 
       {/* Cards grid */}
       <div className="results-grid" style={{ padding:'0 1rem' }}>
-        {filtered.map((item) => {
-          const watched = isWatched(item.id, item.type);
-          const [imgErr, setImgErr] = useState(false);
-          return (
-            <div key={`${item.type}-${item.id}`}
-              className="card"
-              style={{ position:'relative', opacity: watched ? 0.72 : 1, transition:'opacity 0.2s' }}
-              onClick={() => onCardClick(item)}
-              role="button" tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && onCardClick(item)}>
-
-              {/* Watched overlay badge */}
-              {watched && (
-                <div style={{
-                  position:'absolute', top:0, left:0, right:0,
-                  background:'rgba(40,180,100,0.18)',
-                  borderRadius:'12px 12px 0 0',
-                  padding:'0.25rem 0.5rem',
-                  fontSize:'0.7rem', color:'rgb(80,220,120)', fontWeight:700,
-                  zIndex:2,
-                }}>✅ WATCHED</div>
-              )}
-
-              {/* Remove X */}
-              <button
-                id={`watchlist-remove-${item.id}`}
-                className="card__bookmark"
-                onClick={e => { e.stopPropagation(); handleRemove(item); }}
-                aria-label="Remove from watchlist"
-                style={{ top:'0.4rem', right:'0.4rem' }}>✕</button>
-
-              {item.posterUrl && !imgErr
-                ? <img className="card__poster" src={item.posterUrl} alt={item.title}
-                    loading="lazy" onError={() => setImgErr(true)} />
-                : <div className="card__poster-placeholder">{item.type === 'anime' ? '🎌' : '🎬'}</div>
-              }
-
-              <div className="card__body">
-                <p className={`card__type card__type--${item.type}`}>{item.type}</p>
-                <p className="card__title">{item.title}</p>
-                <div className="card__meta">
-                  <span className="card__year">{item.year}</span>
-                  {item.rating > 0 && <span className="card__rating">⭐ {item.rating}</span>}
-                </div>
-                {item.genres?.length > 0 && (
-                  <div className="genre-list">
-                    {item.genres.slice(0,2).map(g => <span key={g} className="genre-tag">{g}</span>)}
-                  </div>
-                )}
-                <button
-                  id={`watchlist-watched-${item.id}`}
-                  onClick={e => handleWatchedToggle(e, item)}
-                  style={{
-                    marginTop:'0.5rem', width:'100%', padding:'0.3rem 0',
-                    borderRadius:6, border:'1px solid',
-                    borderColor: watched ? 'rgba(80,220,120,0.35)' : 'rgba(255,255,255,0.1)',
-                    background: watched ? 'rgba(80,220,120,0.12)' : 'rgba(255,255,255,0.04)',
-                    color: watched ? 'rgb(80,220,120)' : 'var(--text-3)',
-                    fontSize:'0.72rem', cursor:'pointer', fontFamily:'inherit',
-                    fontWeight:600, transition:'all 0.2s',
-                  }}>
-                  {watched ? '✅ Watched' : '○ Mark as Watched'}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        {filtered.map((item) => (
+          <WatchlistCard
+            key={`${item.type}-${item.id}`}
+            item={item}
+            onCardClick={onCardClick}
+            onRemove={handleRemove}
+            onWatchedToggle={handleWatchedToggle}
+            watched={isWatched(item.id, item.type)}
+          />
+        ))}
       </div>
     </div>
   );
 }
+
+/* ── WatchlistCard ─────────────────────────────────────────── */
+function WatchlistCard({ item, onCardClick, onRemove, onWatchedToggle, watched }) {
+  const [imgErr, setImgErr] = useState(false);
+  return (
+    <div
+      key={`${item.type}-${item.id}`}
+      className="card"
+      style={{ position:'relative', opacity: watched ? 0.72 : 1, transition:'opacity 0.2s' }}
+      onClick={() => onCardClick(item)}
+      role="button" tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && onCardClick(item)}>
+
+      {/* Watched overlay badge */}
+      {watched && (
+        <div style={{
+          position:'absolute', top:0, left:0, right:0,
+          background:'rgba(40,180,100,0.18)',
+          borderRadius:'12px 12px 0 0',
+          padding:'0.25rem 0.5rem',
+          fontSize:'0.7rem', color:'rgb(80,220,120)', fontWeight:700,
+          zIndex:2,
+        }}>✅ WATCHED</div>
+      )}
+
+      {/* Remove X */}
+      <button
+        id={`watchlist-remove-${item.id}`}
+        className="card__bookmark"
+        onClick={e => { e.stopPropagation(); onRemove(item); }}
+        aria-label="Remove from watchlist"
+        style={{ top:'0.4rem', right:'0.4rem' }}>✕</button>
+
+      {item.posterUrl && !imgErr
+        ? <img className="card__poster" src={item.posterUrl} alt={item.title}
+            loading="lazy" onError={() => setImgErr(true)} />
+        : <div className="card__poster-placeholder">{item.type === 'anime' ? '🎌' : '🎬'}</div>
+      }
+
+      <div className="card__body">
+        <p className={`card__type card__type--${item.type}`}>{item.type}</p>
+        <p className="card__title">{item.title}</p>
+        <div className="card__meta">
+          <span className="card__year">{item.year}</span>
+          {item.rating > 0 && <span className="card__rating">⭐ {item.rating}</span>}
+        </div>
+        {item.genres?.length > 0 && (
+          <div className="genre-list">
+            {item.genres.slice(0,2).map(g => <span key={g} className="genre-tag">{g}</span>)}
+          </div>
+        )}
+        <button
+          id={`watchlist-watched-${item.id}`}
+          onClick={e => onWatchedToggle(e, item)}
+          style={{
+            marginTop:'0.5rem', width:'100%', padding:'0.3rem 0',
+            borderRadius:6, border:'1px solid',
+            borderColor: watched ? 'rgba(80,220,120,0.35)' : 'rgba(255,255,255,0.1)',
+            background: watched ? 'rgba(80,220,120,0.12)' : 'rgba(255,255,255,0.04)',
+            color: watched ? 'rgb(80,220,120)' : 'var(--text-3)',
+            fontSize:'0.72rem', cursor:'pointer', fontFamily:'inherit',
+            fontWeight:600, transition:'all 0.2s',
+          }}>
+          {watched ? '✅ Watched' : '○ Mark as Watched'}
+        </button>
+      </div>
+    </div>
+  );
+}
+

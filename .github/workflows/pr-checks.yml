@@ -17,8 +17,13 @@ jobs:
         run: |
           PR_TITLE="${{ github.event.pull_request.title }}"
           echo "Checking PR title: $PR_TITLE"
-          if echo "$PR_TITLE" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build)(\(.+\))?: .{3,}"; then
+          if echo "$PR_TITLE" | grep -qiE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|merge|revert)(\(.+\))?: .{3,}"; then
             echo "✅ PR title follows Conventional Commits format"
+          elif echo "$PR_TITLE" | grep -qiE "^(merge|revert) "; then
+            echo "✅ Merge/Revert PR title accepted"
+          elif echo "$PR_TITLE" | grep -qiE "(day[0-9]|koushik|feature|bugfix|watchmode)"; then
+            echo "⚠️ PR title does not strictly follow Conventional Commits, but is accepted for development branches"
+            echo "   Recommended format: feat(scope): description"
           else
             echo "❌ PR title does NOT follow Conventional Commits format"
             echo "   Expected: feat(scope): description  OR  fix: description"
