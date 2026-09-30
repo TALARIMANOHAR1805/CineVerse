@@ -1,40 +1,34 @@
 /**
- * vite.config.js v2 — CineVerse Vite configuration.
+ * vite.config.js v3 — CineVerse Vite configuration.
  *
- * Features:
- *  - API proxy to backend during local development
- *  - Path aliases for cleaner imports
- *  - Optimized chunk splitting for production
- *
+ * Vercel-compatible: no node:path dependency, clean build config.
  * Author: Koushik-31368
  */
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
 
-  // ── Dev server proxy ─────────────────────────────────────
+  // ── Dev server proxy ────────────────────────────────────────
   server: {
     port: 5173,
     proxy: {
-      // Forward /api calls to the Spring Boot backend
+      // Forward /api calls to the Spring Boot backend (local dev only)
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-        rewrite: (path) => path,
       },
     },
   },
 
-  // ── Build optimisation ────────────────────────────────────
+  // ── Build optimisation ───────────────────────────────────────
   build: {
     outDir: 'dist',
     sourcemap: false,
     rollupOptions: {
       output: {
-        // manualChunks must be a function, not an object (Rollup requirement)
+        // manualChunks must be a function (Rollup requirement)
         manualChunks(id) {
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
             return 'vendor';
@@ -42,11 +36,10 @@ export default defineConfig({
         },
       },
     },
-    // Warn when chunks exceed 500kB
-    chunkSizeWarningLimit: 500,
+    chunkSizeWarningLimit: 600,
   },
 
-  // ── Preview ───────────────────────────────────────────────
+  // ── Preview ─────────────────────────────────────────────────
   preview: {
     port: 4173,
   },

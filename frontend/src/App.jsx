@@ -1,16 +1,16 @@
 /**
- * App.jsx — CineVerse v4 (Day 4 — Fully Working Search)
- * - Calls TMDB + Jikan directly from browser (no backend required)
- * - Trending movies + top anime on homepage
- * - Full watchlist, toast, skeleton, detail panel
+ * App.jsx — CineVerse v5 (Day 5 — Discover, Similar, Watch Where, Mark Watched)
  * Author: Koushik-31368
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import './index.css';
 import './App.css';
+import './App.day5.css';
+import useKeyboardShortcuts from './useKeyboardShortcuts';
 import {
   search, fetchTrendingMovies, fetchTopAnime,
   fetchMovieDetails, fetchAnimeDetails, fetchTimeline,
+  fetchSimilarMovies, fetchSimilarAnime, fetchWatchProviders,
   hasTmdbKey, hasBackend,
 } from './api';
 import ErrorBoundary from './ErrorBoundary';
@@ -18,6 +18,7 @@ import { SkeletonGrid } from './Skeleton';
 import { ToastContainer, showToast } from './Toast';
 import { WatchlistProvider, useWatchlist } from './WatchlistContext';
 import WatchlistPage from './WatchlistPage';
+import DiscoverPage from './DiscoverPage';
 import Footer from './Footer';
 
 /* ─────────────────────────────────────────────────────────── */
@@ -94,13 +95,17 @@ function Section({ title, icon, items, onCardClick, badge }) {
 /* Detail Panel                                                 */
 /* ─────────────────────────────────────────────────────────── */
 function DetailPanel({ item: baseItem, onClose }) {
-  const [item, setItem]       = useState(baseItem);
+  const [item, setItem]           = useState(baseItem);
   const [activeTab, setActiveTab] = useState('details');
   const [timeline, setTimeline]   = useState(null);
   const [tlLoading, setTlLoading] = useState(false);
   const [tlError, setTlError]     = useState(null);
-  const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
-  const saved = isInWatchlist(item.id, item.type);
+  const [similar, setSimilar]     = useState([]);
+  const [simLoading, setSimLoading] = useState(false);
+  const [providers, setProviders] = useState(null);
+  const { isInWatchlist, addToWatchlist, removeFromWatchlist, isWatched, markWatched, unmarkWatched } = useWatchlist();
+  const saved   = isInWatchlist(item.id, item.type);
+  const watched = isWatched(item.id, item.type);
 
   // Enrich item details
   useEffect(() => {
@@ -136,6 +141,18 @@ function DetailPanel({ item: baseItem, onClose }) {
     return () => { cancelled = true; };
   }, [activeTab, item, timeline]);
 
+  // Fetch similar / watch providers when those tabs are opened
+  useEffect(() => {
+    if (activeTab === 'similar' && similar.length === 0) {
+      setSimLoading(true);
+      const fn = item.type === 'movie' ? fetchSimilarMovies(item.id) : fetchSimilarAnime(item.id);
+      fn.then(r => { setSimilar(r); setSimLoading(false); });
+    }
+    if (activeTab === 'watch' && providers === null && item.type === 'movie') {
+      fetchWatchProviders(item.id).then(r => setProviders(r || false));
+    }
+  }, [activeTab, item.id, item.type, similar.length, providers]);
+
   // Escape key
   useEffect(() => {
     const h = e => { if (e.key === 'Escape') onClose(); };
@@ -148,8 +165,16 @@ function DetailPanel({ item: baseItem, onClose }) {
     else       { addToWatchlist(item); showToast(`Saved "${item.title}" ✓`, 'success'); }
   };
 
+  const handleWatched = () => {
+    if (!saved) { addToWatchlist(item); }
+    if (watched) { unmarkWatched(item.id, item.type); showToast('Marked as unwatched', 'info'); }
+    else         { markWatched(item.id, item.type);   showToast('Marked as watched ✓', 'success'); }
+  };
+
   const TABS = [
     { id: 'details',  label: '📖 Details' },
+    { id: 'similar',  label: '🎯 Similar' },
+    ...(item.type === 'movie' ? [{ id: 'watch', label: '📺 Watch Where' }] : []),
     { id: 'timeline', label: '📅 Timeline' },
   ];
 
@@ -163,9 +188,24 @@ function DetailPanel({ item: baseItem, onClose }) {
             <span className={`tl-type-badge tl-type-badge--${item.type}`}>{item.type}</span>
             <h2 className="tl-panel__franchise">{item.title}</h2>
           </div>
-          <button onClick={handleBookmark} className={`panel-save-btn ${saved ? 'panel-save-btn--saved' : ''}`}>
-            {saved ? '🔖 Saved' : '+ Save'}
-          </button>
+          <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+            <button
+              id="panel-watched-btn"
+              onClick={handleWatched}
+              style={{
+                padding:'0.35rem 0.85rem', borderRadius:'999px', border:'1px solid',
+                borderColor: watched ? 'rgba(80,220,120,0.4)' : 'rgba(255,255,255,0.15)',
+                background:  watched ? 'rgba(80,220,120,0.15)' : 'transparent',
+                color: watched ? 'rgb(80,220,120)' : 'var(--text-2)',
+                fontSize:'0.78rem', fontWeight:600, cursor:'pointer', fontFamily:'inherit',
+                transition:'all 0.2s',
+              }}>
+              {watched ? '✅ Watched' : '○ Watched?'}
+            </button>
+            <button onClick={handleBookmark} className={`panel-save-btn ${saved ? 'panel-save-btn--saved' : ''}`}>
+              {saved ? '🔖 Saved' : '+ Save'}
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -284,6 +324,109 @@ function DetailPanel({ item: baseItem, onClose }) {
               )}
             </div>
           )}
+
+          {activeTab === 'similar' && (
+            <div style={{ padding: '0 0 1rem' }}>
+              {simLoading && (
+                <div style={{ textAlign:'center', padding:'2rem', color:'var(--text-2)' }}>
+                  <div className="spinner" style={{ margin:'0 auto 0.75rem' }} />
+                  <p>Finding similar titles…</p>
+                </div>
+              )}
+              {!simLoading && similar.length === 0 && (
+                <div style={{ textAlign:'center', padding:'2rem', color:'var(--text-3)' }}>
+                  <p>No similar titles found.</p>
+                </div>
+              )}
+              {!simLoading && similar.length > 0 && (
+                <>
+                  <p style={{ fontSize:'0.78rem', color:'var(--text-3)', padding:'0.5rem 1rem', marginBottom:'0.5rem' }}>
+                    {similar.length} titles similar to {item.title}
+                  </p>
+                  <div className="results-grid" style={{ padding:'0 1rem' }}>
+                    {similar.map((s, i) => (
+                      <div key={`${s.id}-${i}`} className="card"
+                        onClick={() => {}}
+                        style={{ cursor:'default', opacity:0.92 }}>
+                        {s.posterUrl
+                          ? <img className="card__poster" src={s.posterUrl} alt={s.title} loading="lazy" />
+                          : <div className="card__poster-placeholder">{s.type === 'anime' ? '🏌️' : '🎬'}</div>
+                        }
+                        <div className="card__body">
+                          <p className={`card__type card__type--${s.type}`}>{s.type}</p>
+                          <p className="card__title">{s.title}</p>
+                          <div className="card__meta">
+                            <span className="card__year">{s.year}</span>
+                            {s.rating > 0 && <span className="card__rating">⭐ {s.rating}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'watch' && item.type === 'movie' && (
+            <div style={{ padding:'1rem' }}>
+              {providers === null && (
+                <div style={{ textAlign:'center', padding:'2rem', color:'var(--text-2)' }}>
+                  <div className="spinner" style={{ margin:'0 auto 0.75rem' }} />
+                  <p>Checking streaming services…</p>
+                </div>
+              )}
+              {providers === false && (
+                <div style={{ textAlign:'center', padding:'2rem', color:'var(--text-3)' }}>
+                  <p>No streaming data available for your region.</p>
+                  {!import.meta.env.VITE_TMDB_API_KEY && (
+                    <p style={{ fontSize:'0.8rem', marginTop:'0.5rem' }}>Add TMDB API key to enable this feature.</p>
+                  )}
+                </div>
+              )}
+              {providers && providers !== false && (
+                <div>
+                  {providers.link && (
+                    <a href={providers.link} target="_blank" rel="noreferrer"
+                      style={{
+                        display:'inline-block', marginBottom:'1rem',
+                        padding:'0.4rem 1rem', borderRadius:'999px', fontSize:'0.8rem',
+                        background:'rgba(124,111,255,0.15)', color:'var(--accent)',
+                        border:'1px solid rgba(124,111,255,0.3)', textDecoration:'none',
+                      }}>View on JustWatch →</a>
+                  )}
+                  {[
+                    { label: 'Stream', arr: providers.flatrate },
+                    { label: 'Rent',   arr: providers.rent },
+                    { label: 'Buy',    arr: providers.buy },
+                  ]
+                    .filter(item => item.arr?.length > 0)
+                    .map(item => (
+                      <div key={item.label} style={{ marginBottom:'1.25rem' }}>
+                        <p style={{ fontSize:'0.75rem', color:'var(--text-3)', marginBottom:'0.5rem', textTransform:'uppercase', letterSpacing:'0.05em' }}>{item.label}</p>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:'0.6rem' }}>
+                          {item.arr.map(p => (
+                            <div key={p.id} title={p.name}
+                              style={{
+                                display:'flex', flexDirection:'column', alignItems:'center', gap:'0.25rem',
+                                padding:'0.4rem', borderRadius:'8px', background:'rgba(255,255,255,0.05)',
+                                border:'1px solid rgba(255,255,255,0.08)', minWidth:'56px',
+                              }}>
+                              <img src={p.logo} alt={p.name}
+                                style={{ width:36, height:36, borderRadius:6, objectFit:'cover' }}
+                                onError={e => { e.target.style.display = 'none'; }} />
+                              <span style={{ fontSize:'0.65rem', color:'var(--text-3)', textAlign:'center', lineHeight:1.2 }}>{p.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       </div>
     </div>
@@ -305,8 +448,14 @@ function AppNavbar({ currentPage, onNav }) {
   return (
     <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
       <button className="navbar__logo" onClick={() => onNav('home')}>🎬 CineVerse</button>
-      <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
-        <button className={`nav-btn ${currentPage === 'watchlist' ? 'nav-btn--active' : ''}`}
+      <div style={{ display:'flex', gap:'0.5rem', alignItems:'center', flexWrap:'wrap' }}>
+        <button id="nav-discover"
+          className={`nav-btn ${currentPage === 'discover' ? 'nav-btn--active' : ''}`}
+          onClick={() => onNav(currentPage === 'discover' ? 'home' : 'discover')}>
+          🧭 Discover
+        </button>
+        <button id="nav-watchlist"
+          className={`nav-btn ${currentPage === 'watchlist' ? 'nav-btn--active' : ''}`}
           onClick={() => onNav(currentPage === 'watchlist' ? 'home' : 'watchlist')}>
           🔖 Watchlist
           {watchlist.length > 0 && <span className="nav-badge">{watchlist.length}</span>}
@@ -524,6 +673,14 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  // Global keyboard shortcuts
+  useKeyboardShortcuts({
+    onDiscover:  () => setPage('discover'),
+    onWatchlist: () => setPage('watchlist'),
+    onHome:      () => setPage('home'),
+    onEscape:    () => { if (detailItem) setDetailItem(null); else setPage('home'); },
+  });
+
   return (
     <div className="app">
       <AppNavbar currentPage={page} onNav={setPage} />
@@ -532,6 +689,10 @@ function AppContent() {
       {page === 'watchlist' ? (
         <main className="content">
           <WatchlistPage onCardClick={(item) => { openDetail(item); setPage('home'); }} />
+        </main>
+      ) : page === 'discover' ? (
+        <main className="content">
+          <DiscoverPage onCardClick={openDetail} />
         </main>
       ) : (
         <HomePage onCardClick={openDetail} />
