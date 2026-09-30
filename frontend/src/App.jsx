@@ -6,6 +6,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import './index.css';
 import './App.css';
 import './App.day5.css';
+import useKeyboardShortcuts from './useKeyboardShortcuts';
 import {
   search, fetchTrendingMovies, fetchTopAnime,
   fetchMovieDetails, fetchAnimeDetails, fetchTimeline,
@@ -666,6 +667,14 @@ function AppContent() {
     setDetailItem(item);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts({
+    onDiscover:  () => setPage('discover'),
+    onWatchlist: () => setPage('watchlist'),
+    onHome:      () => setPage('home'),
+    onEscape:    () => { if (detailItem) setDetailItem(null); else setPage('home'); },
+  });
 
   return (
     <div className="app">
