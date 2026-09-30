@@ -18,6 +18,7 @@ import { SkeletonGrid } from './Skeleton';
 import { ToastContainer, showToast } from './Toast';
 import { WatchlistProvider, useWatchlist } from './WatchlistContext';
 import WatchlistPage from './WatchlistPage';
+import DiscoverPage from './DiscoverPage';
 import Footer from './Footer';
 
 /* ─────────────────────────────────────────────────────────── */
@@ -305,8 +306,14 @@ function AppNavbar({ currentPage, onNav }) {
   return (
     <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
       <button className="navbar__logo" onClick={() => onNav('home')}>🎬 CineVerse</button>
-      <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
-        <button className={`nav-btn ${currentPage === 'watchlist' ? 'nav-btn--active' : ''}`}
+      <div style={{ display:'flex', gap:'0.5rem', alignItems:'center', flexWrap:'wrap' }}>
+        <button id="nav-discover"
+          className={`nav-btn ${currentPage === 'discover' ? 'nav-btn--active' : ''}`}
+          onClick={() => onNav(currentPage === 'discover' ? 'home' : 'discover')}>
+          🧭 Discover
+        </button>
+        <button id="nav-watchlist"
+          className={`nav-btn ${currentPage === 'watchlist' ? 'nav-btn--active' : ''}`}
           onClick={() => onNav(currentPage === 'watchlist' ? 'home' : 'watchlist')}>
           🔖 Watchlist
           {watchlist.length > 0 && <span className="nav-badge">{watchlist.length}</span>}
@@ -532,6 +539,10 @@ function AppContent() {
       {page === 'watchlist' ? (
         <main className="content">
           <WatchlistPage onCardClick={(item) => { openDetail(item); setPage('home'); }} />
+        </main>
+      ) : page === 'discover' ? (
+        <main className="content">
+          <DiscoverPage onCardClick={openDetail} />
         </main>
       ) : (
         <HomePage onCardClick={openDetail} />
