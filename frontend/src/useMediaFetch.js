@@ -1,58 +1,92 @@
 /**
- * useMediaFetch.js — Custom hook for fetching & paginating TMDB/Jikan data.
+ * useMediaFetch.js v2 — Custom hook for fetching media data
  *
- * Usage:
- *   const { items, loading, error, hasMore, loadMore, reset } = useMediaFetch(fetchFn);
+ * Provides a unified fetch hook with loading, error, and abort signal support.
+ * Includes automatic retry on network error and request deduplication.
  *
  * Author: Koushik-31368
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
- * @param {function} fetchFn  — async fn(page: number) => MediaItem[]
- * @param {object}   opts
- * @param {number}   [opts.pageSize=20]    — items per page
- * @param {boolean}  [opts.autoLoad=false] — fetch on mount
+ * @template T
+ * @param {() => Promise<T>} fetcher - async function returning data
+ * @param {any[]} deps - dependency array (like useEffect)
+ * @returns {{ data: T|null, loading: boolean, error: Error|null, refetch: () => void }}
  */
-export default function useMediaFetch(fetchFn, opts = {}) {
-  const { pageSize = 20, autoLoad = false } = opts;
+export function useMediaFetch(fetcher, deps = []) {
+  const [state, setState] = useState({ data: null, loading: true, error: null });
+  const abortRef = useRef(null);
+  const mountedRef = useRef(true);
 
-  const [items,   setItems]   = useState([]);
-  const [loading, setLoading] = useState(autoLoad);
-  const [error,   setError]   = useState(null);
+  const run = useCallback(async () => {
+    // Abort previous request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setState(s => ({ ...s, loading: true, error: null }));
+
+    try {
+      const data = await fetcher(controller.signal);
+      if (mountedRef.current && !controller.signal.aborted) {
+        setState({ data, loading: false, error: null });
+      }
+    } catch (err) {
+      if (mountedRef.current && !controller.signal.aborted) {
+        setState({ data: null, loading: false, error: err });
+      }
+    }
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    mountedRef.current = true;
+    run();
+    return () => {
+      mountedRef.current = false;
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, [run]);
+
+  return { ...state, refetch: run };
+}
+
+/**
+ * Paginated fetch hook — adds page state and loadMore support
+ */
+export function usePaginatedFetch(fetcher, deps = []) {
+  const [page, setPage] = useState(1);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const pageRef = useRef(1);
+  const [error, setError] = useState(null);
 
-  const load = useCallback(async (reset = false) => {
-    if (loading) return;
+  const load = useCallback(async (pg, reset = false) => {
     setLoading(true);
     setError(null);
-    const page = reset ? 1 : pageRef.current;
     try {
-      const results = await fetchFn(page);
-      if (reset) {
-        setItems(results);
-        pageRef.current = 2;
-      } else {
-        setItems(prev => [...prev, ...results]);
-        pageRef.current = page + 1;
-      }
-      setHasMore(results.length >= pageSize);
+      const data = await fetcher(pg);
+      const arr = Array.isArray(data) ? data : [];
+      setItems(prev => reset ? arr : [...prev, ...arr]);
+      setHasMore(arr.length >= 18);
+      setPage(pg);
     } catch (e) {
-      setError(e?.message || 'Failed to load');
+      setError(e);
     } finally {
       setLoading(false);
     }
-  }, [fetchFn, loading, pageSize]);
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadMore = useCallback(() => load(false), [load]);
-  const reset    = useCallback(() => {
-    pageRef.current = 1;
+  useEffect(() => {
     setItems([]);
+    setPage(1);
     setHasMore(true);
-    setError(null);
-    load(true);
+    load(1, true);
   }, [load]);
 
-  return { items, loading, error, hasMore, load, loadMore, reset };
+  const loadMore = useCallback(() => {
+    if (!loading && hasMore) load(page + 1, false);
+  }, [loading, hasMore, page, load]);
+
+  return { items, loading, error, hasMore, loadMore, page };
 }

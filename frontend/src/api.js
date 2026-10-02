@@ -235,3 +235,31 @@ export async function fetchWatchProviders(tmdbId, region = 'IN', signal) {
 export const hasTmdbKey = () => Boolean(TMDB_KEY);
 export const hasBackend  = () => Boolean(BACKEND);
 
+// ── Movies by Category (TMDB discover / movie lists) ─────────
+export async function fetchMoviesByCategory(category = 'popular', page = 1, genreId = null, signal) {
+  if (!TMDB_KEY) return [];
+  try {
+    let url;
+    if (genreId) {
+      // Use /discover/movie with genre filter
+      url = `${TMDB_BASE}/discover/movie?api_key=${TMDB_KEY}&sort_by=popularity.desc&with_genres=${genreId}&page=${page}`;
+    } else {
+      // Use the specific list endpoint
+      const endpoint = ['popular', 'top_rated', 'now_playing', 'upcoming'].includes(category)
+        ? `/movie/${category}`
+        : '/discover/movie';
+      url = `${TMDB_BASE}${endpoint}?api_key=${TMDB_KEY}&page=${page}`;
+    }
+    const json = await fetchJson(url, signal);
+    return (json.results || []).map(tmdbToMedia);
+  } catch { return []; }
+}
+
+// ── Anime by Category (Jikan /top/anime filter) ───────────────
+export async function fetchAnimeByCategory(filter = 'airing', page = 1, signal) {
+  try {
+    const url  = `${JIKAN}/top/anime?filter=${filter}&page=${page}&limit=18`;
+    const json = await fetchJson(url, signal);
+    return (json.data || []).map(jikanToMedia);
+  } catch { return []; }
+}

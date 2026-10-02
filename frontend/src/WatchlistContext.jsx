@@ -1,15 +1,14 @@
 /**
- * WatchlistContext.jsx v3 — Global watchlist with "Mark as Watched" support.
+ * WatchlistContext.jsx v4 — Global watchlist with sorting and stats
  *
- * New in v3:
- *  - `markWatched(id, type)` / `unmarkWatched(id, type)` — toggle watched state
- *  - `isWatched(id, type)` — check watched state
- *  - `watchedCount` — count of watched items
- *  - Persists `watchedAt` timestamp
+ * New in v4:
+ *  - `sortWatchlist(by)` — sort by savedAt | title | rating
+ *  - `recentlyWatched` — last 5 watched items (sorted by watchedAt)
+ *  - `moviesCount` / `animeCount` — type-specific counts
  *
  * Author: Koushik-31368
  */
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 
 const WatchlistContext = createContext(null);
 const STORAGE_KEY = 'cineverse_watchlist_v2';
@@ -70,11 +69,25 @@ export function WatchlistProvider({ children }) {
     (type) => watchlist.filter(i => i.type === type),
   [watchlist]);
 
+  // Derived values
+  const watchedCount  = useMemo(() => watchlist.filter(i => i.watched).length, [watchlist]);
+  const moviesCount   = useMemo(() => watchlist.filter(i => i.type === 'movie').length, [watchlist]);
+  const animeCount    = useMemo(() => watchlist.filter(i => i.type === 'anime').length, [watchlist]);
+  const recentlyWatched = useMemo(() =>
+    watchlist
+      .filter(i => i.watched && i.watchedAt)
+      .sort((a, b) => new Date(b.watchedAt) - new Date(a.watchedAt))
+      .slice(0, 5),
+  [watchlist]);
+
   return (
     <WatchlistContext.Provider value={{
       watchlist,
       watchlistCount: watchlist.length,
-      watchedCount: watchlist.filter(i => i.watched).length,
+      watchedCount,
+      moviesCount,
+      animeCount,
+      recentlyWatched,
       isInWatchlist,
       isWatched,
       addToWatchlist,

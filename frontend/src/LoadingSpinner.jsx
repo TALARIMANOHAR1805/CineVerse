@@ -1,98 +1,97 @@
 /**
- * LoadingSpinner component - Displays an animated spinner with optional message.
- *
- * Props:
- *   message {string} - Optional loading message to display (default: "Loading...")
- *   size    {string} - Spinner size: "sm" | "md" | "lg" (default: "md")
- *   fullPage {bool}  - If true, centers spinner over full viewport (default: false)
+ * LoadingSpinner.jsx v2 — Professional loading components
+ * Author: Koushik-31368
  */
-export default function LoadingSpinner({
-  message = 'Loading...',
-  size = 'md',
-  fullPage = false,
-}) {
-  const sizes = { sm: 32, md: 56, lg: 80 };
-  const px = sizes[size] ?? sizes.md;
-  const border = Math.max(3, px / 10);
 
-  const wrapperStyle = fullPage
-    ? {
-        position: 'fixed',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(15, 12, 41, 0.85)',
-        backdropFilter: 'blur(6px)',
-        zIndex: 9999,
-      }
-    : {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-      };
-
+/**
+ * Spinning ring loader
+ */
+export default function LoadingSpinner({ size = 40, label = 'Loading…' }) {
   return (
-    <div style={wrapperStyle} role="status" aria-live="polite" aria-label={message}>
-      {/* Animated ring */}
-      <div
-        style={{
-          width: px,
-          height: px,
-          borderRadius: '50%',
-          border: `${border}px solid rgba(247, 37, 133, 0.2)`,
-          borderTopColor: '#f72585',
-          borderRightColor: '#7209b7',
-          animation: 'cv-spin 0.9s linear infinite',
-        }}
-      />
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '2rem' }}>
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 40 40"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-label={label}
+        role="status"
+      >
+        <circle
+          cx="20" cy="20" r="17"
+          fill="none"
+          stroke="var(--bg-surface-3)"
+          strokeWidth="3"
+        />
+        <circle
+          cx="20" cy="20" r="17"
+          fill="none"
+          stroke="url(#spinner-gradient)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray="80 26"
+          style={{ animation: 'spin 0.8s linear infinite', transformOrigin: 'center' }}
+        />
+        <defs>
+          <linearGradient id="spinner-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#7c6fff" />
+            <stop offset="100%" stopColor="#ff6b9d" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{label}</p>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
 
-      {/* Film strip dots below spinner */}
+/**
+ * Inline loading dots
+ */
+export function LoadingDots() {
+  return (
+    <span aria-label="Loading" style={{ display: 'inline-flex', gap: '3px', alignItems: 'center' }}>
+      {[0, 1, 2].map(i => (
+        <span
+          key={i}
+          style={{
+            width: 4, height: 4,
+            borderRadius: '50%',
+            background: 'var(--brand)',
+            animation: `pulse-dot 1.2s ease-in-out ${i * 0.15}s infinite`,
+          }}
+        />
+      ))}
+      <style>{`@keyframes pulse-dot { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }`}</style>
+    </span>
+  );
+}
+
+/**
+ * Full-page loading screen
+ */
+export function PageLoader({ message = 'Loading CineVerse…' }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg-base)',
+      zIndex: 9999,
+      gap: '1.5rem',
+    }}>
       <div style={{
-        display: 'flex',
-        gap: '6px',
-        marginTop: '1rem',
+        fontSize: '2rem',
+        fontFamily: 'Playfair Display, serif',
+        fontWeight: 700,
+        background: 'var(--brand-gradient)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
       }}>
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: '#f72585',
-              opacity: 0.7,
-              animation: `cv-pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
-            }}
-          />
-        ))}
+        🎬 CineVerse
       </div>
-
-      {message && (
-        <p style={{
-          marginTop: '0.75rem',
-          color: '#a0a0c0',
-          fontSize: '0.9rem',
-          fontFamily: "'Inter', sans-serif",
-          letterSpacing: '0.02em',
-        }}>
-          {message}
-        </p>
-      )}
-
-      {/* Keyframe styles injected inline */}
-      <style>{`
-        @keyframes cv-spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes cv-pulse {
-          0%, 100% { transform: scale(0.6); opacity: 0.4; }
-          50%       { transform: scale(1);   opacity: 1;   }
-        }
-      `}</style>
+      <LoadingSpinner size={48} label={message} />
     </div>
   );
 }

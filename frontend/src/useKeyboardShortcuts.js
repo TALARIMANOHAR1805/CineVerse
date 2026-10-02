@@ -1,65 +1,46 @@
 /**
- * useKeyboardShortcuts.js — Register keyboard shortcuts for CineVerse.
+ * useKeyboardShortcuts.js v2 — Global keyboard shortcut handler
  *
- * Shortcuts:
- *   /        → focus search bar
- *   Escape   → close detail panel / clear search
- *   D        → go to Discover page
- *   W        → go to Watchlist page
- *   H        → go to Home
+ * Usage:
+ *   useKeyboardShortcuts({ 'h': () => nav('home'), 'd': () => nav('discover') })
+ *
+ * Features:
+ *  - Ignores shortcuts when typing in inputs
+ *  - Case-insensitive matching
+ *  - Supports modifier keys check (shift, ctrl, meta)
  *
  * Author: Koushik-31368
  */
 import { useEffect } from 'react';
 
+const IGNORE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT', 'CONTENTEDITABLE']);
+
 /**
- * @param {object} handlers
- * @param {function} [handlers.onSearch]    — called when '/' pressed
- * @param {function} [handlers.onEscape]    — called when 'Escape' pressed
- * @param {function} [handlers.onDiscover]  — called when 'd' pressed
- * @param {function} [handlers.onWatchlist] — called when 'w' pressed
- * @param {function} [handlers.onHome]      — called when 'h' pressed
+ * @param {Record<string, () => void>} shortcuts - key → handler map
+ * @param {boolean} [enabled=true]
  */
-export default function useKeyboardShortcuts({
-  onSearch,
-  onEscape,
-  onDiscover,
-  onWatchlist,
-  onHome,
-} = {}) {
+export default function useKeyboardShortcuts(shortcuts, enabled = true) {
   useEffect(() => {
-    function handle(e) {
-      // Skip if user is typing in input/textarea
-      const tag = document.activeElement?.tagName;
-      const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
+    if (!enabled) return;
 
-      if (inInput && e.key !== 'Escape') return;
+    const handler = (e) => {
+      // Skip if user is typing in a form field
+      const tag = e.target?.tagName;
+      const isEditable = e.target?.isContentEditable;
+      if (IGNORE_TAGS.has(tag) || isEditable) return;
 
-      switch (e.key) {
-        case '/':
-          e.preventDefault();
-          onSearch?.();
-          break;
-        case 'Escape':
-          onEscape?.();
-          break;
-        case 'd':
-        case 'D':
-          if (!inInput) { e.preventDefault(); onDiscover?.(); }
-          break;
-        case 'w':
-        case 'W':
-          if (!inInput) { e.preventDefault(); onWatchlist?.(); }
-          break;
-        case 'h':
-        case 'H':
-          if (!inInput) { e.preventDefault(); onHome?.(); }
-          break;
-        default:
-          break;
+      // Skip if modifier keys are held (allow browser shortcuts)
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const key = e.key.toLowerCase();
+      const fn  = shortcuts[key];
+      if (fn) {
+        e.preventDefault();
+        fn();
       }
-    }
-    window.addEventListener('keydown', handle);
-    return () => window.removeEventListener('keydown', handle);
-  }, [onSearch, onEscape, onDiscover, onWatchlist, onHome]);
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [shortcuts, enabled]);
 }
