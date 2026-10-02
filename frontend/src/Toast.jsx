@@ -1,95 +1,87 @@
 /**
- * Toast.jsx v2 — Event-driven toast notification system.
+ * Toast.jsx v2 — Professional toast notification system
  *
  * Usage:
- *   showToast('Message text', 'success' | 'error' | 'info');
- *   <ToastContainer /> — put once in App root
- *
- * Improvements:
- *  - Max 4 toasts visible
- *  - Click to dismiss
- *  - Accessible aria-live region
+ *   import { ToastContainer, showToast } from './Toast';
+ *   showToast('Saved!', 'success'); // 'success' | 'error' | 'info' | 'warning'
  *
  * Author: Koushik-31368
  */
 import { useState, useEffect, useCallback } from 'react';
 
-const BUS_EVENT = 'cineverse:toast';
-let toastId = 0;
+let _addToast = null;
 
-export function showToast(message, type = 'info', duration = 3500) {
-  window.dispatchEvent(new CustomEvent(BUS_EVENT, {
-    detail: { id: ++toastId, message, type, duration }
-  }));
+const ICONS = {
+  success: '✓',
+  error:   '✕',
+  info:    'ℹ',
+  warning: '⚠',
+};
+
+const COLORS = {
+  success: 'var(--success)',
+  error:   'var(--danger)',
+  info:    'var(--brand)',
+  warning: 'var(--warning)',
+};
+
+let nextId = 0;
+
+export function showToast(message, type = 'info', duration = 3200) {
+  if (_addToast) _addToast({ id: ++nextId, message, type, duration });
 }
 
-const ICONS = { success: '✓', error: '⚠️', info: 'ℹ' };
-const COLORS = {
-  success: 'rgba(34,197,94,0.15)',
-  error:   'rgba(239,68,68,0.15)',
-  info:    'rgba(124,111,255,0.12)',
-};
-const BORDER_COLORS = {
-  success: 'rgba(34,197,94,0.4)',
-  error:   'rgba(239,68,68,0.4)',
-  info:    'rgba(124,111,255,0.3)',
-};
+function Toast({ toast, onRemove }) {
+  useEffect(() => {
+    const t = setTimeout(() => onRemove(toast.id), toast.duration);
+    return () => clearTimeout(t);
+  }, [toast, onRemove]);
+
+  return (
+    <div
+      className={`toast toast--${toast.type}`}
+      role="status"
+      aria-live="polite"
+    >
+      <span style={{ color: COLORS[toast.type], fontWeight: 700, fontSize: '1rem' }}>
+        {ICONS[toast.type]}
+      </span>
+      <span style={{ flex: 1 }}>{toast.message}</span>
+      <button
+        onClick={() => onRemove(toast.id)}
+        aria-label="Dismiss"
+        style={{
+          background: 'none', border: 'none', color: 'var(--text-muted)',
+          cursor: 'pointer', fontSize: '0.9rem', padding: '0 0.2rem',
+          lineHeight: 1, fontFamily: 'inherit',
+        }}
+      >✕</button>
+    </div>
+  );
+}
 
 export function ToastContainer() {
   const [toasts, setToasts] = useState([]);
 
-  const remove = useCallback(id => {
+  const add = useCallback((t) => {
+    setToasts(prev => [...prev.slice(-4), t]);
+  }, []);
+
+  const remove = useCallback((id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
   useEffect(() => {
-    const handler = (e) => {
-      const toast = e.detail;
-      setToasts(prev => {
-        const next = [toast, ...prev].slice(0, 4); // max 4
-        return next;
-      });
-      setTimeout(() => remove(toast.id), toast.duration);
-    };
-    window.addEventListener(BUS_EVENT, handler);
-    return () => window.removeEventListener(BUS_EVENT, handler);
-  }, [remove]);
+    _addToast = add;
+    return () => { _addToast = null; };
+  }, [add]);
 
   if (!toasts.length) return null;
 
   return (
-    <div
-      aria-live="polite"
-      aria-label="Notifications"
-      style={{
-        position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 300,
-        display: 'flex', flexDirection: 'column', gap: '0.5rem',
-        maxWidth: '320px', width: '100%',
-      }}
-    >
+    <div className="toast-container" aria-label="Notifications">
       {toasts.map(t => (
-        <div
-          key={t.id}
-          role="alert"
-          onClick={() => remove(t.id)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.6rem',
-            padding: '0.7rem 1rem',
-            background: COLORS[t.type] || COLORS.info,
-            border: `1px solid ${BORDER_COLORS[t.type] || BORDER_COLORS.info}`,
-            borderRadius: '10px',
-            backdropFilter: 'blur(20px)',
-            cursor: 'pointer',
-            animation: 'fadeUp 0.25s ease',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-          }}
-        >
-          <span style={{ fontSize: '1rem', flex: '0 0 auto' }}>{ICONS[t.type]}</span>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text)', lineHeight: 1.4, flex: 1 }}>
-            {t.message}
-          </span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-3)', flex: '0 0 auto' }}>✕</span>
-        </div>
+        <Toast key={t.id} toast={t} onRemove={remove} />
       ))}
     </div>
   );

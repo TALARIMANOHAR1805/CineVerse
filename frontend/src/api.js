@@ -263,37 +263,3 @@ export async function fetchAnimeByCategory(filter = 'airing', page = 1, signal) 
     return (json.data || []).map(jikanToMedia);
   } catch { return []; }
 }
-
-// ── Movie Details (TMDB full details) ─────────────────────────
-export async function fetchMovieDetails(tmdbId, signal) {
-  if (!TMDB_KEY) return null;
-  try {
-    const url  = `${TMDB_BASE}/movie/${tmdbId}?api_key=${TMDB_KEY}&append_to_response=credits`;
-    const json = await fetchJson(url, signal);
-    return {
-      ...tmdbToMedia(json),
-      overview:  json.overview,
-      runtime:   json.runtime,
-      status:    json.status,
-      tagline:   json.tagline,
-    };
-  } catch { return null; }
-}
-
-// ── Anime Details (Jikan full details) ────────────────────────
-export async function fetchAnimeDetails(malId, signal) {
-  try {
-    const url  = `${JIKAN}/anime/${malId}/full`;
-    const json = await fetchJson(url, signal);
-    const a    = json.data;
-    if (!a) return null;
-    return {
-      ...jikanToMedia(a),
-      overview:     a.synopsis,
-      episodes:     a.episodes,
-      status:       a.status,
-      studio:       a.studios?.[0]?.name,
-      openingTheme: a.theme?.openings?.[0],
-    };
-  } catch { return null; }
-}
