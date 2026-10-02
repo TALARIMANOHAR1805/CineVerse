@@ -30,6 +30,11 @@ def normalize(text: str) -> str:
     return text
 
 
+def normalize_text(text: str) -> str:
+    """Backward-compatible alias for normalize()."""
+    return normalize(text)
+
+
 def tokenize(text: str, remove_stopwords: bool = True, min_length: int = 2) -> List[str]:
     """Normalize and split text into tokens, optionally removing stopwords."""
     tokens = normalize(text).split()
