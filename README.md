@@ -1,17 +1,17 @@
-## CineVerse — Updated README
+# CineVerse — Professional Movie & Anime Discovery Platform
 
 <div align="center">
 
-# 🎬 CineVerse
-
-**Should I watch this?**  
-Search any movie or anime. Get spoiler-free details, timeline placement, ML recommendations.
+![CineVerse Logo](https://img.shields.io/badge/🎬_CineVerse-Premium_Discovery-7c6fff?style=for-the-badge&labelColor=080b14)
 
 [![CI](https://github.com/TALARIMANOHAR1805/CineVerse/actions/workflows/ci.yml/badge.svg)](https://github.com/TALARIMANOHAR1805/CineVerse/actions/workflows/ci.yml)
-[![Frontend](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react)](https://react.dev)
-[![Backend](https://img.shields.io/badge/Backend-Spring%20Boot%203-6DB33F?logo=spring)](https://spring.io)
-[![ML](https://img.shields.io/badge/ML-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
-[![License](https://img.shields.io/badge/License-MIT-purple)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-7c6fff?style=flat-square)](LICENSE)
+[![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-5-646cff?style=flat-square&logo=vite)](https://vitejs.dev)
+
+**Search millions of movies and anime. Find where to stream. Build your watchlist.**
+
+[Live Demo](https://cineverse-frontend.vercel.app) · [Report Bug](https://github.com/TALARIMANOHAR1805/CineVerse/issues) · [Request Feature](https://github.com/TALARIMANOHAR1805/CineVerse/issues)
 
 </div>
 
@@ -21,92 +21,133 @@ Search any movie or anime. Get spoiler-free details, timeline placement, ML reco
 
 | Feature | Description |
 |---------|-------------|
-| 🔍 **Movie Search** | Search via TMDB API — title, year, rating, genres, cast |
-| 🎌 **Anime Search** | Search via Jikan (MyAnimeList) — no API key needed |
-| 🔥 **Trending** | Trending movies this week from TMDB |
-| 🌸 **Top Anime** | Currently airing anime from Jikan |
-| 📅 **Timeline** | Watch-order placement (backend + Neo4j) |
-| 🔖 **Watchlist** | Save items to browser localStorage — no login needed |
-| 🤖 **ML Recs** | TF-IDF similarity recommendations (FastAPI) |
-| 🎨 **Vibe Match** | Aesthetic colour-based discovery |
-| 📡 **Health API** | Liveness, readiness, runtime info endpoints |
+| 🔍 **Universal Search** | Search movies and anime simultaneously via TMDB + Jikan APIs |
+| 🔥 **Trending** | Live trending movies and top anime on the homepage |
+| 🧭 **Discover** | Browse by category (Popular / Top Rated / In Theaters) and 13+ genres |
+| 📺 **Watch Where** | Find streaming providers via JustWatch / TMDB data |
+| 📚 **Watchlist** | Save titles, mark as watched, track progress — persisted in localStorage |
+| 📊 **Stats Dashboard** | Visual stats: Total / Movies / Anime / Watched / Progress bar |
+| 🎭 **Detail Panel** | Slide-in sidebar with poster, genres, overview, similar titles, timeline |
+| ⌨️ **Keyboard Shortcuts** | `H` Home · `D` Discover · `W` Watchlist · `/` Search · `Esc` Close |
+| 🌙 **Dark Mode** | Premium dark UI with glassmorphism, gradients, and micro-animations |
 
 ---
 
-## 🚀 Quick Start (Local)
-
-### Anime Search works instantly — no setup needed!
-
-```bash
-git clone https://github.com/TALARIMANOHAR1805/CineVerse.git
-cd CineVerse/frontend
-npm install
-
-# Copy env file and add your TMDB key for movie search
-cp .env.example .env
-# Edit .env → add VITE_TMDB_API_KEY=your_key
-
-npm run dev
-# → http://localhost:5173
-```
-
-> Get a **free TMDB API key** at [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api)
-
-### Full stack with Docker
-
-```bash
-docker compose up --build
-```
-
----
-
-## 🏗 Architecture
-
-```
-Browser (React + Vite)
-       │
-       ├── TMDB API (direct)    ─── Movie search, trending
-       ├── Jikan API (direct)   ─── Anime search, top anime
-       │
-       └── Spring Boot Backend (optional)
-                 │
-                 ├── Neo4j AuraDB   ─── Timeline/graph
-                 └── FastAPI ML     ─── Recommendations, vibe
-```
-
----
-
-## 📁 Project Structure
+## 🏗️ Architecture
 
 ```
 CineVerse/
-├── frontend/     React 18 + Vite (deployed on Vercel)
-├── backend/      Spring Boot 3 + Java 21 (Render)
-├── ml/           FastAPI + Python 3.11 (Render)
-├── .github/      CI/CD workflows
-└── docker-compose.yml
+├── frontend/          # React 18 + Vite 5 SPA
+│   ├── src/
+│   │   ├── App.jsx              # Main app + MediaCard + DetailPanel + Navbar
+│   │   ├── DiscoverPage.jsx     # Browse by category + genre
+│   │   ├── WatchlistPage.jsx    # Saved list with stats dashboard
+│   │   ├── WatchlistContext.jsx # Global state (React Context + localStorage)
+│   │   ├── api.js               # Unified API layer (TMDB + Jikan)
+│   │   ├── index.css            # Professional design system v6
+│   │   └── ...hooks, components
+│   └── vite.config.js
+├── backend/           # Spring Boot REST API (optional)
+│   └── src/main/java/...
+├── ml/                # FastAPI ML service
+│   ├── app/
+│   │   ├── genre_classifier.py  # Genre scoring
+│   │   ├── mood_analyzer.py     # Mood detection
+│   │   ├── recommender.py       # Recommendation engine
+│   │   └── vibe_engine.py       # Vibe-based search
+│   └── tests/         # 80+ unit tests
+└── .github/workflows/ # CI/CD pipelines
 ```
 
 ---
 
-## 📖 Documentation
+## 🚀 Getting Started
 
-| Doc | Description |
-|-----|-------------|
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Vercel + Render deploy guide |
-| [LOCAL_DEV.md](LOCAL_DEV.md)   | Local setup instructions |
-| [API_REFERENCE.md](API_REFERENCE.md) | API endpoint docs |
-| [ARCHITECTURE.md](ARCHITECTURE.md)  | System design |
-| [FAQ.md](FAQ.md)               | Common questions |
-| [CHANGELOG.md](CHANGELOG.md)   | Version history |
+### Frontend (No backend needed!)
+
+```bash
+cd frontend
+npm install
+# Optional: add TMDB key for full features
+echo "VITE_TMDB_API_KEY=your_key_here" > .env.local
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173)
+
+> **Note:** Without a TMDB API key, anime search (via Jikan) still works. Get a free key at [themoviedb.org](https://www.themoviedb.org/settings/api).
+
+### Backend (Spring Boot)
+
+```bash
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--tmdb.api.key=YOUR_KEY"
+```
+
+### ML Service (FastAPI)
+
+```bash
+cd ml
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+# Tests:
+pytest tests/ -v
+```
 
 ---
 
-## 👥 Contributors
+## ⌨️ Keyboard Shortcuts
 
-- **TALARIMANOHAR1805** — Project owner
-- **Koushik-31368** — Full-stack improvements, CI/CD, ML pipeline
+| Key | Action |
+|-----|--------|
+| `/` | Focus search |
+| `H` | Go to Home |
+| `D` | Go to Discover |
+| `W` | Go to Watchlist |
+| `Esc` | Close detail panel |
 
 ---
 
-*Movie data from [TMDB](https://www.themoviedb.org) · Anime from [Jikan](https://jikan.moe)*
+## 🛠️ Tech Stack
+
+**Frontend**
+- React 18, Vite 5, vanilla CSS
+- TMDB API (movies), Jikan API (anime)
+- JustWatch via TMDB watch/providers endpoint
+
+**Backend** (optional)
+- Spring Boot 3, Java 21
+- TMDB REST integration, franchise timeline logic
+
+**ML Service** (optional)
+- FastAPI, Python 3.12
+- Genre classifier, mood analyzer, vibe-based recommendations
+
+**CI/CD**
+- GitHub Actions: lint, test, build
+- Vercel (frontend), Railway/Render (backend + ML)
+
+---
+
+## 📋 Development Journal
+
+| Day | Focus | Commits |
+|-----|-------|---------|
+| Day 1 | Project setup, CI/CD, basic search | 10 |
+| Day 2 | Watchlist, localStorage, TMDB integration | 15 |
+| Day 3 | Anime search (Jikan), detail panel, timeline | 20 |
+| Day 4 | Backend Spring Boot, ML FastAPI foundation | 18 |
+| Day 5 | Discover page, watch providers, similar titles | 25 |
+| Day 6 | **Professional redesign, design system v6** | **20+** |
+
+---
+
+## 📜 License
+
+MIT © [CineVerse Contributors](https://github.com/TALARIMANOHAR1805/CineVerse)
+
+---
+
+<div align="center">
+  <sub>Movie data powered by <a href="https://www.themoviedb.org">TMDB</a> · Anime data by <a href="https://jikan.moe">Jikan/MAL</a></sub>
+</div>
